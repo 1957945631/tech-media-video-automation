@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "daily_collect": {
+    "max_items": 30,
+    "language": "zh-CN",
+    "timezone": "Asia/Shanghai",
+    "minimum_fields": [
+      "title",
+      "published_at",
+      "source_name",
+      "source_url",
+      "summary",
+      "category",
+      "initial_score",
+      "follow_up"
+    ]
+  },
+  "five_day_select": {
+    "candidate_count": {
+      "min": 8,
+      "max": 12
+    },
+    "recommended_video_count": {
+      "min": 5,
+      "max": 7
+    },
+    "scoring_weights": {
+      "impact": 0.25,
+      "freshness": 0.15,
+      "source_reliability": 0.2,
+      "explainability": 0.2,
+      "douyin_discussability": 0.1,
+      "topic_balance": 0.1
+    },
+    "preferred_topic_mix": {
+      "AI/大模型": 2,
+      "消费电子": 1,
+      "互联网公司": 1,
+      "芯片/硬科技": 1,
+      "政策监管": 1,
+      "备用热点": 1
+    }
+  },
+  "filters": {
+    "drop_if_no_source_url": true,
+    "drop_if_only_rumor": true,
+    "drop_low_public_relevance": true,
+    "dedupe_similar_events": true
+  }
+}

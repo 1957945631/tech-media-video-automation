@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "positioning": "普通人看懂的一周科技大事",
+  "regions": ["global", "china"],
+  "categories": [
+    "AI/大模型",
+    "消费电子",
+    "互联网公司",
+    "芯片/硬科技",
+    "新产品",
+    "政策监管",
+    "融资并购"
+  ],
+  "preferred_sources": [
+    {
+      "name": "OpenAI News",
+      "type": "official",
+      "url": "https://openai.com/news/"
+    },
+    {
+      "name": "Google Blog",
+      "type": "official",
+      "url": "https://blog.google/"
+    },
+    {
+      "name": "Microsoft Blog",
+      "type": "official",
+      "url": "https://blogs.microsoft.com/"
+    },
+    {
+      "name": "Apple Newsroom",
+      "type": "official",
+      "url": "https://www.apple.com/newsroom/"
+    },
+    {
+      "name": "NVIDIA Blog",
+      "type": "official",
+      "url": "https://blogs.nvidia.com/"
+    },
+    {
+      "name": "Reuters Technology",
+      "type": "media",
+      "url": "https://www.reuters.com/technology/"
+    },
+    {
+      "name": "The Verge",
+      "type": "media",
+      "url": "https://www.theverge.com/tech"
+    },
+    {
+      "name": "36氪",
+      "type": "media",
+      "url": "https://36kr.com/"
+    },
+    {
+      "name": "钛媒体",
+      "type": "media",
+      "url": "https://www.tmtpost.com/"
+    }
+  ],
+  "source_policy": {
+    "prefer_official_sources": true,
+    "require_source_url": true,
+    "prefer_second_source_for_selection": true,
+    "avoid_unverified_social_posts": true
+  }
+}

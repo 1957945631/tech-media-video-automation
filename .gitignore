@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+
+# Runtime logs
+logs/*
+!logs/.gitkeep
+*.log
+
+# Generated media and episode outputs
+data/assets/*
+!data/assets/.gitkeep
+data/audio/*
+!data/audio/.gitkeep
+!data/audio/README.md
+data/daily/*
+!data/daily/.gitkeep
+data/production/*
+!data/production/.gitkeep
+data/selected/*
+!data/selected/.gitkeep
+data/subtitles/*
+!data/subtitles/.gitkeep
+data/video-scripts/*
+!data/video-scripts/.gitkeep
+data/videos/*
+!data/videos/.gitkeep
+
+public/assets/*
+!public/assets/.gitkeep
+public/audio/*
+!public/audio/.gitkeep
+!public/audio/README.md
+
+reports/*
+!reports/.gitkeep
+
+# Local OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
