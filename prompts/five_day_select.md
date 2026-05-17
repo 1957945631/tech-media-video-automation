@@ -2,6 +2,11 @@
 
 读取 `data/daily/` 中最近 5 天的科技新闻。如果本地归档不足，使用最新网络信息补齐最近 5 天的重要科技新闻。
 
+本地归档不足或需要交叉核验时，先调用：
+`npm run news:aggregate:select -- --date YYYY-MM-DD`
+
+读取 `data/selected/YYYY-MM-DD-news-aggregator-supplement.json`，将其作为补充候选池。补充候选必须经过去重、聚类和来源核验后，才能进入正式筛选结果。
+
 目标：
 - 面向“普通人看懂的一周科技大事”抖音账号。
 - 对新闻进行去重、聚类、核验和评分。

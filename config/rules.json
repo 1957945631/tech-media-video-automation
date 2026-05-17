@@ -46,5 +46,21 @@
     "drop_if_only_rumor": true,
     "drop_low_public_relevance": true,
     "dedupe_similar_events": true
+  },
+  "visual_quality": {
+    "methodology": "config/visual-system.json",
+    "visual_beat_prompt": "prompts/visual_beat_planning.md",
+    "require_semantic_fields": [
+      "subject",
+      "action",
+      "concept",
+      "visualRole",
+      "transitionOut"
+    ],
+    "max_consecutive_same_visual_role": 2,
+    "real_world_asset_interval_seconds": 15,
+    "diagram_or_keyword_interval_seconds": 20,
+    "max_concept_continuous_seconds": 12,
+    "require_highlight_for_evidence": true
   }
 }

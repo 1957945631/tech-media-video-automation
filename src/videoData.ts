@@ -26,8 +26,16 @@ export type VisualBeat = {
   end: number;
   captionRange: [number, number];
   intent: string;
+  subject: string;
+  action: string;
+  concept: string;
+  visualRole: 'evidence' | 'product_ui' | 'person_or_company' | 'broll' | 'concept' | 'diagram' | 'keyword';
   keywords: string[];
+  assetQuery?: string[];
   overlayTitle: string;
+  transitionOut: 'cut' | 'flash' | 'glitch' | 'zoom' | 'scan';
+  highlight?: unknown;
+  hasHighlight?: boolean;
   assets: string[];
 };
 

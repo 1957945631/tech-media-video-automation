@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "positioning": "口播语义驱动的视频视觉系统",
+  "goal": "观众即使关闭声音，只看画面，也能大概理解视频在讲什么。",
+  "visual_roles": {
+    "evidence": {
+      "label": "证据截图",
+      "use_for": ["新闻事实", "公告", "财报", "监管文件", "媒体原文"],
+      "asset_priority": ["official_page", "trusted_media", "document", "annotated_screenshot"],
+      "required_treatment": ["highlight_box_or_arrow", "source_label", "readable_body"]
+    },
+    "product_ui": {
+      "label": "产品 UI",
+      "use_for": ["产品功能", "App", "网页界面", "开发者工具"],
+      "asset_priority": ["official_product_page", "app_store", "product_screenshot", "demo_video"],
+      "required_treatment": ["clean_crop", "source_label", "subtle_zoom"]
+    },
+    "person_or_company": {
+      "label": "人物 / 公司",
+      "use_for": ["公司主体", "创始人", "品牌", "机构"],
+      "asset_priority": ["official_photo", "press_page", "logo_as_secondary_element"],
+      "required_treatment": ["avoid_logo_fullscreen_over_3s", "context_caption"]
+    },
+    "broll": {
+      "label": "真实场景 b-roll",
+      "use_for": ["产业现实", "工厂", "数据中心", "会议", "城市", "消费场景"],
+      "asset_priority": ["real_footage", "official_video", "news_video_still"],
+      "required_treatment": ["slow_push", "vignette", "low_saturation"]
+    },
+    "concept": {
+      "label": "抽象科技画面",
+      "use_for": ["趋势", "情绪", "未来感", "抽象概念"],
+      "asset_priority": ["generated_visual", "abstract_motion", "style_card"],
+      "required_treatment": ["scanline", "noise", "not_consecutive_over_12s"]
+    },
+    "diagram": {
+      "label": "图解动画",
+      "use_for": ["商业模式", "技术路径", "成本结构", "因果关系", "产业链"],
+      "asset_priority": ["remotion_diagram", "structured_nodes", "source_backed_numbers"],
+      "required_treatment": ["clear_nodes", "limited_text", "animated_links"]
+    },
+    "keyword": {
+      "label": "关键词观点卡",
+      "use_for": ["观点反转", "段落总结", "核心判断", "结论落点"],
+      "asset_priority": ["remotion_card"],
+      "required_treatment": ["8_to_16_chars", "judgment_sentence", "yellow_punch"]
+    }
+  },
+  "rotation_formula": [
+    "evidence",
+    "person_or_company",
+    "product_ui",
+    "broll",
+    "diagram",
+    "keyword",
+    "concept"
+  ],
+  "transition_ratio": {
+    "cut": 0.7,
+    "flash": 0.15,
+    "glitch": 0.1,
+    "zoom": 0.03,
+    "scan": 0.02
+  },
+  "quality_rules": {
+    "max_consecutive_same_visual_role": 2,
+    "real_world_asset_interval_seconds": 15,
+    "diagram_or_keyword_interval_seconds": 20,
+    "max_logo_fullscreen_seconds": 3,
+    "max_concept_continuous_seconds": 12,
+    "min_information_change_interval_seconds": 10,
+    "require_highlight_for_evidence": true,
+    "forbid_unmodified_duplicate_asset": true
+  },
+  "style_preset": {
+    "fps": 30,
+    "width": 1080,
+    "height": 1920,
+    "scanlineOpacity": 0.12,
+    "noiseOpacity": 0.08,
+    "vignetteOpacity": 0.45,
+    "chromaticOffset": 1.5,
+    "cardRadius": 28,
+    "cardBorderOpacity": 0.25,
+    "imageContrast": 1.15,
+    "imageSaturation": 0.85,
+    "imageBrightness": 0.92,
+    "titleColor": "#FFD21E",
+    "background": "#050505"
+  }
+}

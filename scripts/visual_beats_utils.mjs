@@ -1,4 +1,8 @@
 const tolerance = 0.04;
+const visualRoles = new Set(['evidence', 'product_ui', 'person_or_company', 'broll', 'concept', 'diagram', 'keyword']);
+const transitions = new Set(['cut', 'flash', 'glitch', 'zoom', 'scan']);
+const realWorldRoles = new Set(['evidence', 'product_ui', 'person_or_company', 'broll']);
+const explanatoryRoles = new Set(['diagram', 'keyword']);
 
 export const captionRangeToTime = (captionRange, captions, durationSeconds) => {
   const [startIndex, endIndex] = captionRange;
@@ -31,6 +35,30 @@ export const validateVisualBeats = ({beats, segments, captions, durationSeconds}
 
     if (!beat.overlayTitle) {
       problems.push(`${label} missing overlayTitle`);
+    }
+
+    if (!beat.subject) {
+      problems.push(`${label} missing subject`);
+    }
+
+    if (!beat.action) {
+      problems.push(`${label} missing action`);
+    }
+
+    if (!beat.concept) {
+      problems.push(`${label} missing concept`);
+    }
+
+    if (!visualRoles.has(beat.visualRole)) {
+      problems.push(`${label} has invalid visualRole ${beat.visualRole ?? 'missing'}`);
+    }
+
+    if (!transitions.has(beat.transitionOut)) {
+      problems.push(`${label} has invalid transitionOut ${beat.transitionOut ?? 'missing'}`);
+    }
+
+    if (beat.visualRole === 'evidence' && !beat.highlight && !beat.hasHighlight) {
+      problems.push(`${label} evidence beat needs highlight metadata`);
     }
 
     if (!Array.isArray(beat.captionRange) || beat.captionRange.length !== 2) {
@@ -68,6 +96,49 @@ export const validateVisualBeats = ({beats, segments, captions, durationSeconds}
     const current = beats[index];
     if (current.start < previous.end - tolerance) {
       problems.push(`visualBeats[${index}] ${current.id} overlaps previous beat`);
+    }
+  }
+
+  let sameRoleCount = 1;
+  let conceptStart = null;
+  let lastRealWorldStart = null;
+  let lastExplanatoryStart = null;
+  const sorted = [...beats].sort((a, b) => a.start - b.start);
+
+  for (let index = 0; index < sorted.length; index += 1) {
+    const current = sorted[index];
+    const previous = sorted[index - 1];
+
+    if (previous && current.visualRole === previous.visualRole) {
+      sameRoleCount += 1;
+      if (sameRoleCount > 2) {
+        problems.push(`visualBeats role repetition: ${current.visualRole} appears more than 2 times in a row near ${current.id}`);
+      }
+    } else {
+      sameRoleCount = 1;
+    }
+
+    if (realWorldRoles.has(current.visualRole)) {
+      if (lastRealWorldStart !== null && current.start - lastRealWorldStart > 15 + tolerance) {
+        problems.push(`visualBeats real-world asset gap exceeds 15s before ${current.id}`);
+      }
+      lastRealWorldStart = current.start;
+    }
+
+    if (explanatoryRoles.has(current.visualRole)) {
+      if (lastExplanatoryStart !== null && current.start - lastExplanatoryStart > 20 + tolerance) {
+        problems.push(`visualBeats diagram/keyword gap exceeds 20s before ${current.id}`);
+      }
+      lastExplanatoryStart = current.start;
+    }
+
+    if (current.visualRole === 'concept') {
+      conceptStart ??= current.start;
+      if (current.end - conceptStart > 12 + tolerance) {
+        problems.push(`visualBeats concept visuals continue over 12s near ${current.id}`);
+      }
+    } else {
+      conceptStart = null;
     }
   }
 

@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "skill": {
+    "name": "news-aggregator-skill",
+    "default_dir": "%USERPROFILE%/.codex/skills/news-aggregator-skill",
+    "override_env": "NEWS_AGGREGATOR_SKILL_DIR"
+  },
+  "profiles": {
+    "daily_collect": {
+      "description": "每日科技新闻抓取前置全网扫描，覆盖全球、中国、AI、开源、产品、财经热点。",
+      "runner": "fetch_news",
+      "source": "hackernews,github,producthunt,36kr,tencent,wallstreetcn,weibo,huggingface,ai_newsletters",
+      "limit": 8,
+      "keyword": "AI,LLM,GPT,Claude,Agent,RAG,DeepSeek,芯片,机器人,自动驾驶,消费电子,监管,融资",
+      "deep": true,
+      "output": "data/daily/{date}-news-aggregator-raw.json"
+    },
+    "five_day_supplement": {
+      "description": "五天筛选时用于补齐本地归档不足或交叉核验热点。",
+      "runner": "fetch_news",
+      "source": "all",
+      "limit": 12,
+      "deep": true,
+      "output": "data/selected/{date}-news-aggregator-supplement.json"
+    },
+    "asset_research": {
+      "description": "素材获取阶段用于寻找可截图页面、官方链接、项目仓库、论文和产品页线索。",
+      "runner": "fetch_news",
+      "source": "github,producthunt,hackernews,huggingface,ai_newsletters",
+      "limit": 6,
+      "keyword": "",
+      "deep": true,
+      "output": "data/assets/{date}/news-aggregator-research.json"
+    }
+  }
+}

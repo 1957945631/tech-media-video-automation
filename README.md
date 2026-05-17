@@ -101,15 +101,20 @@ Codex 自动化任务：`五天科技新闻筛选`
 ### 5. 句级 visual beats
 
 后半段画面不能只按热点段轮播，而要按关键句生成 visual beats。
+项目采用 `config/visual-system.json` 中定义的“口播语义驱动的视频视觉系统”，让每句话都分配明确的视觉角色和素材策略。
 
 每个 visual beat 至少包含：
 
 - `start/end`：来自 SRT 的真实时间。
 - `captionRange`：绑定到字幕句。
 - `intent`：这一句要表达什么。
+- `subject/action/concept`：这一句讲谁、发生什么、背后概念是什么。
+- `visualRole`：证据截图、产品 UI、人物/公司、真实 b-roll、概念画面、图解或关键词观点卡。
 - `keywords`：素材检索和卡片生成关键词。
+- `assetQuery`：按画面功能拆出的素材搜索词。
 - `assets`：真实截图或自制信息卡。
 - `overlayTitle`：素材卡内部标题。
+- `transitionOut`：出场转场，保持硬切为主、少量白闪和 glitch。
 
 规则：
 
@@ -117,6 +122,10 @@ Codex 自动化任务：`五天科技新闻筛选`
 - 短句可以合并成一个 beat。
 - visual beat 不能跨热点。
 - Remotion 当前画面优先使用 `visualBeats`，没有 beat 时才回退热点段素材。
+- 同一种 `visualRole` 不能连续超过 2 次。
+- 每 15 秒至少出现一次真实世界素材。
+- 每 20 秒至少出现一次图解或观点卡。
+- 证据截图必须有标注，否则观众不知道该看哪里。
 
 ### 6. 素材采集与生成
 
@@ -192,6 +201,18 @@ npm install
 npm run capture:daily-assets
 ```
 
+运行全网新闻聚合候选池：
+
+```bash
+npm run news:aggregate:daily -- --date YYYY-MM-DD
+npm run news:aggregate:select -- --date YYYY-MM-DD
+npm run news:aggregate:assets -- --date YYYY-MM-DD
+```
+
+新闻聚合 skill 的项目接入说明见：
+
+- `docs/news-aggregator-skill.md`
+
 用最终 SRT 和素材生成本期 `videoData.ts`：
 
 ```bash
@@ -245,6 +266,7 @@ npm run validate:timeline:video
 ```text
 tech-news-automation/
   config/                 新闻源、规则、筛选配置
+    visual-system.json    视频高级感、视觉角色和防重复规则
   data/
     assets/               原始素材、visual-beats.json
     audio/                最终配音
@@ -257,6 +279,7 @@ tech-news-automation/
   docs/                   生产流程和质检文档
   logs/                   自动化运行日志
   prompts/                Codex 自动化提示词
+    visual_beat_planning.md  句级 visual beat 规划提示词
   public/
     assets/               Remotion 渲染用素材
     audio/                Remotion 渲染用配音
@@ -270,6 +293,8 @@ tech-news-automation/
 
 - `scripts/srt_utils.mjs`：解析和校验 SRT。
 - `scripts/visual_beats_utils.mjs`：校验 visual beats 时间合法性。
+- `config/visual-system.json`：定义视觉角色、转场比例、全局视觉参数和防重复规则。
+- `docs/advanced-video-methodology.md`：沉淀口播类科技视频高级感方法论。
 - `scripts/visual_beat_plan.mjs`：当前测试期的 beat 规划。
 - `scripts/capture_daily_assets.mjs`：按 beat 抓取真实素材或生成信息卡。
 - `scripts/build_episode_from_srt.mjs`：从最终 SRT、音频和素材生成 `src/videoData.ts`。

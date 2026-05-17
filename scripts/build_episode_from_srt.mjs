@@ -154,8 +154,16 @@ const main = async () => {
       end,
       captionRange: beat.captionRange,
       intent: beat.intent,
+      subject: beat.subject,
+      action: beat.action,
+      concept: beat.concept,
+      visualRole: beat.visualRole,
       keywords: beat.keywords,
+      assetQuery: beat.assetQuery,
       overlayTitle: beat.overlayTitle,
+      transitionOut: beat.transitionOut,
+      highlight: beat.highlight,
+      hasHighlight: beat.hasHighlight,
       assets: beatAssetsById.get(beat.id) ?? []
     };
   });
@@ -193,8 +201,16 @@ export type VisualBeat = {
   end: number;
   captionRange: [number, number];
   intent: string;
+  subject: string;
+  action: string;
+  concept: string;
+  visualRole: 'evidence' | 'product_ui' | 'person_or_company' | 'broll' | 'concept' | 'diagram' | 'keyword';
   keywords: string[];
+  assetQuery?: string[];
   overlayTitle: string;
+  transitionOut: 'cut' | 'flash' | 'glitch' | 'zoom' | 'scan';
+  highlight?: unknown;
+  hasHighlight?: boolean;
   assets: string[];
 };
 
