@@ -11,6 +11,8 @@
     "news:aggregate:daily": "node scripts/run_news_aggregator.mjs --profile daily_collect",
     "news:aggregate:select": "node scripts/run_news_aggregator.mjs --profile five_day_supplement",
     "news:aggregate:assets": "node scripts/run_news_aggregator.mjs --profile asset_research",
+    "news:daily": "node scripts/daily_news_job.mjs",
+    "news:select": "node scripts/five_day_selection_job.mjs",
     "capture:daily-assets": "node scripts/capture_daily_assets.mjs",
     "build:episode": "node scripts/build_episode_from_srt.mjs",
     "test": "node --test scripts/*.test.mjs",

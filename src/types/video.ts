@@ -1,3 +1,18 @@
+export type AssetFunction =
+  | 'evidence_screenshot'
+  | 'company_person'
+  | 'product_ui'
+  | 'real_broll'
+  | 'industry_broll'
+  | 'commercial_broll'
+  | 'abstract_tech'
+  | 'remotion_diagram'
+  | 'yellow_opinion_card';
+
+export type VisualRole = 'evidence' | 'product_ui' | 'person_or_company' | 'broll' | 'concept' | 'diagram' | 'keyword';
+
+export type TransitionName = 'cut' | 'flash' | 'glitch' | 'zoom' | 'scan';
+
 export type Segment = {
   id: string;
   start: number;
@@ -10,7 +25,6 @@ export type Segment = {
   asset?: string;
   assets?: string[];
   sourceName?: string;
-  risk?: string;
 };
 
 export type Caption = {
@@ -29,11 +43,12 @@ export type VisualBeat = {
   subject: string;
   action: string;
   concept: string;
-  visualRole: 'evidence' | 'product_ui' | 'person_or_company' | 'broll' | 'concept' | 'diagram' | 'keyword';
+  visualRole: VisualRole;
+  assetFunction: AssetFunction;
   keywords: string[];
   assetQuery?: string[];
   overlayTitle: string;
-  transitionOut: 'cut' | 'flash' | 'glitch' | 'zoom' | 'scan';
+  transitionOut: TransitionName;
   highlight?: unknown;
   hasHighlight?: boolean;
   assets: string[];
@@ -49,30 +64,4 @@ export type VideoData = {
   captions: Caption[];
   segments: Segment[];
   visualBeats: VisualBeat[];
-};
-
-const fps = 30;
-
-export const videoData: VideoData = {
-  fps,
-  durationInFrames: 1,
-  title: '一周科技大事',
-  subtitle: '硅基打底',
-  date: '',
-  voiceover: undefined,
-  captions: [],
-  segments: [
-    {
-      id: 'empty',
-      start: 0,
-      end: 1 / fps,
-      kicker: '等待正式内容',
-      title: '请先生成本期数据',
-      body: '提供最终配音和 SRT 后，运行素材采集与 build:episode 生成正式视频数据。',
-      ribbon: '当前没有可渲染的正式 episode',
-      accent: '#f5b400',
-      assets: []
-    }
-  ],
-  visualBeats: []
 };

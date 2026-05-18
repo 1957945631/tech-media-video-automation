@@ -2,317 +2,105 @@
 
 本项目用于生产抖音竖屏栏目《一周科技大事》。栏目品牌暂定为“硅基打底”，目标是把复杂科技新闻整理成普通人能听懂、能持续追更、视觉质量稳定的短视频。
 
-这不是一个单纯“抓新闻并渲染视频”的项目，而是一个分成前后两段的生产流水线。
+频道不是“一周 AI 大事”。AI 是重要科技方向之一，但每期选题、口播和素材都应覆盖更广的科技产业：AI、芯片与半导体、消费电子、互联网平台、云计算与数据中心、开源安全、机器人、新能源与电力、航天、游戏与硬件。
 
-## 项目理解
+## 生产流程
 
-前半部分由两个 Codex 自动化任务完成，负责把科技新闻反馈到位：
+1. 每日新闻抓取：输出 `data/daily/` 和 `reports/`。
+2. 五天新闻筛选：输出 `data/selected/` 和筛选报告。
+3. 口播与分镜草稿：输出 `data/video-scripts/`，供配音平台使用。
+4. 用户反馈最终 MP3 与 SRT：放入 `data/audio/`、`public/audio/`、`data/subtitles/`。
+5. 素材采集：输出 `data/assets/YYYY-MM-DD/` 和 `public/assets/YYYY-MM-DD/`。
+6. Episode 构建：从最终 SRT、音频、素材 manifest 生成 `src/data/currentEpisode.ts`。
+7. Remotion 渲染：`src/TechNewsVideo.tsx` 负责总编排，视觉由组件库渲染。
+8. 质量校验：先跑测试和时间线校验，再决定是否静帧或完整渲染。
 
-- 每日科技新闻抓取：持续收集、归档当天科技新闻。
-- 五天科技新闻筛选：从最近几天新闻里选出适合做成一期视频的主题。
+最终配音和 SRT 是后半段最高优先级。不要在配音完成前锁死视频时长，正式流程必须以最终 MP3/SRT 反推字幕、画面切换点、visual beats 和视频总时长。
 
-前半部分的交付物是：
+## 素材原则
 
-- 可读日报和筛选报告。
-- 口播正文草稿。
-- 分镜和视觉方向草稿。
+素材按功能获取，不按泛泛关键词堆图：
 
-后半部分从你反馈最终配音和 SRT 文件开始，负责真正成片：
+- 证据素材：官网、新闻、推文、财报、公告截图。
+- 产品素材：App UI、网页界面、功能截图、开发者工具界面。
+- 产业素材：数据中心、GPU、芯片、工厂、电力、供应链。
+- 商业素材：广告后台、订阅、支付、企业会议、办公流程。
+- 抽象素材：AI 网络、未来城市、数字大脑、芯片结构。
+- 图解素材：由 Remotion 组件动态生成。
 
-- 以最终 MP3 和 SRT 为唯一时间基准。
-- 根据口播和字幕逐句寻找或生成素材。
-- 用 Remotion 渲染竖屏成片。
-- 对成片做质量审查，避免排版、遮挡、乱码、不同步、素材错位等低级错误。
-- 在基础合格后，再提升审美、节奏、转场、素材质感和整体视觉效果。
-
-## 核心原则
-
-最终配音和 SRT 是后半段的最高优先级。
-
-不要在配音完成前锁死视频时长。正式流程必须先拿到最终配音和最终 SRT，再反推字幕、画面切换点、visual beats 和视频总时长。
-
-渲染成功不等于成片合格。成片必须经过时间线校验和人工视觉审查，确认没有遮挡、乱码、错位、字幕错误、素材和口播不匹配等问题后，才能视为完成。
-
-## 工作流
-
-### 1. 每日新闻抓取
-
-Codex 自动化任务：`每日科技新闻抓取`
-
-输出：
-
-- `data/daily/`：每日结构化新闻归档。
-- `reports/`：人工可读日报。
-
-目标：
-
-- 抓取全球和中国科技新闻。
-- 保留标题、来源、发布时间、链接、摘要、可信度备注。
-- 优先关注 AI、芯片、消费电子、互联网平台、机器人、自动驾驶、科技监管。
-
-### 2. 五天新闻筛选
-
-Codex 自动化任务：`五天科技新闻筛选`
-
-输出：
-
-- `data/selected/`：筛选结果。
-- `reports/`：筛选报告。
-
-筛选标准：
-
-- 重要性：是否影响行业、公司、政策或用户习惯。
-- 可解释性：普通观众是否能听懂。
-- 画面性：是否有官网、博客、新闻源、产品图或可截图页面。
-- 风险控制：是否需要注明传闻、媒体报道、未正式确认。
-- 内容平衡：避免一期全是同一类新闻。
-
-### 3. 口播和分镜草稿
-
-输出：
-
-- `data/video-scripts/`：口播正文和分镜草稿。
-
-要求：
-
-- 输出完整口播正文，方便你复制到配音平台。
-- 同时输出分镜草稿，说明每条新闻应该用什么素材表达。
-- 分镜只作为视觉规划，不作为最终时间轴。
-
-### 4. 你反馈最终配音和 SRT
-
-你提供：
-
-- 最终配音 MP3。
-- 与最终配音对齐的 SRT。
-
-项目内放置路径：
-
-- `data/audio/YYYY-MM-DD-voiceover.mp3`
-- `public/audio/YYYY-MM-DD-voiceover.mp3`
-- `data/subtitles/YYYY-MM-DD-aligned.srt`
-
-注意：
-
-- 字幕必须来自最终配音，不能只用口播文本估算。
-- 口播文本只用于理解语义和提取视觉关键词。
-- 后续字幕和画面节奏都跟 SRT 走。
-
-### 5. 句级 visual beats
-
-后半段画面不能只按热点段轮播，而要按关键句生成 visual beats。
-项目采用 `config/visual-system.json` 中定义的“口播语义驱动的视频视觉系统”，让每句话都分配明确的视觉角色和素材策略。
-
-每个 visual beat 至少包含：
-
-- `start/end`：来自 SRT 的真实时间。
-- `captionRange`：绑定到字幕句。
-- `intent`：这一句要表达什么。
-- `subject/action/concept`：这一句讲谁、发生什么、背后概念是什么。
-- `visualRole`：证据截图、产品 UI、人物/公司、真实 b-roll、概念画面、图解或关键词观点卡。
-- `keywords`：素材检索和卡片生成关键词。
-- `assetQuery`：按画面功能拆出的素材搜索词。
-- `assets`：真实截图或自制信息卡。
-- `overlayTitle`：素材卡内部标题。
-- `transitionOut`：出场转场，保持硬切为主、少量白闪和 glitch。
-
-规则：
-
-- 时间以 SRT 为准。
-- 短句可以合并成一个 beat。
-- visual beat 不能跨热点。
-- Remotion 当前画面优先使用 `visualBeats`，没有 beat 时才回退热点段素材。
-- 同一种 `visualRole` 不能连续超过 2 次。
-- 每 15 秒至少出现一次真实世界素材。
-- 每 20 秒至少出现一次图解或观点卡。
-- 证据截图必须有标注，否则观众不知道该看哪里。
-
-### 6. 素材采集与生成
-
-输出：
-
-- `data/assets/YYYY-MM-DD/`：原始素材、素材清单、visual beats。
-- `public/assets/YYYY-MM-DD/`：Remotion 可读取素材。
-
-素材优先级：
-
-1. 公司官网、官方博客、产品页、公告页。
-2. 可信新闻源页面。
-3. 监管机构、交易所、论文、GitHub、开发者文档。
-4. 抓不到真实素材时，生成统一风格的暗黑科技信息卡。
-
-素材要求：
-
-- 素材必须服务当前口播句，而不是只服务当前热点。
-- 自制卡不是普通占位图，要有来源、关键词、主题标题和统一视觉风格。
-- 不允许外层装饰文字遮挡素材正文。
-
-### 7. Remotion 渲染
-
-当前 Remotion 入口：
-
-- `src/index.ts`
-- `src/Root.tsx`
-- `src/TechNewsVideo.tsx`
-- `src/videoData.ts`
-
-当前 composition id：
-
-- `TechNewsEpisode`
-
-字幕风格：
-
-- 无背景板。
-- 大号白字。
-- 黑色描边或投影。
-- 居中偏下。
-- 不遮挡主体内容。
-
-### 8. 质量审查
-
-成片必须经过两类审查：
-
-- 自动审查：测试、类型检查、时间线校验、视频时长校验。
-- 人工审查：抽帧和快速看成片，检查排版、遮挡、乱码、字幕、素材语义和整体观感。
-
-详细清单见：
-
-- `docs/production-quality-checklist.md`
-
-最低要求：
-
-- 音频、SRT、segments、visualBeats、视频时长不越界。
-- 字幕和配音对齐。
-- 当前画面和当前口播句对齐。
-- 不出现低级视觉错误，包括遮挡、乱码、文字溢出、字幕背景板误用、素材主体被装饰盖住。
-- 成片审查发现问题时，必须修复后重新渲染并再次校验。
-
-## 常用命令
-
-安装依赖：
+素材获取阶段可以先调用 `news-aggregator-skill` 扩大候选池：
 
 ```bash
-npm install
-```
-
-生成素材：
-
-```bash
-npm run capture:daily-assets
-```
-
-运行全网新闻聚合候选池：
-
-```bash
-npm run news:aggregate:daily -- --date YYYY-MM-DD
-npm run news:aggregate:select -- --date YYYY-MM-DD
 npm run news:aggregate:assets -- --date YYYY-MM-DD
+npm run capture:daily-assets -- YYYY-MM-DD
 ```
 
-新闻聚合 skill 的项目接入说明见：
+`capture:daily-assets` 会自动读取 `data/assets/YYYY-MM-DD/news-aggregator-research.json`，把其中的 GitHub、Product Hunt、Hacker News、Hugging Face、中文科技新闻等链接并入证据截图、产品 UI 和真实 b-roll 候选池。
 
-- `docs/news-aggregator-skill.md`
+推荐画面节奏：证据截图 → 公司/人物 → 产品 UI → 科技 b-roll → 产业现实画面 → Remotion 图解 → 黄色关键词观点卡。这个节奏是优先模式，不是死模板；渲染器会根据 `assetFunction`、当前口播、最近画面历史和素材库存灵活选择。
 
-用最终 SRT 和素材生成本期 `videoData.ts`：
+## Remotion 组件库
 
-```bash
-npm run build:episode
-```
+视觉层拆成可组合组件：
 
-测试：
+- `EvidenceCard`：证据截图，必须配安全标注，优先高亮标题、来源或关键段落区域。
+- `BrollCard`：真实视频优先，缺视频时用真实图片做动态镜头。
+- `ConceptCard`：抽象科技画面。
+- `DiagramCard`：商业逻辑、技术逻辑、产业链图解。
+- `KeywordPunch`：黄色大字观点卡。
+- `HighlightEngine`：安全红框、宽区域强调、放大镜和说明标签；禁止固定坐标箭头。
+- `TransitionPreset`：白闪、glitch、推近、扫描线、硬切。
 
-```bash
-npm test
-```
-
-渲染前时间线校验：
-
-```bash
-npm run validate:timeline
-```
-
-渲染静帧：
-
-```bash
-npm run remotion:still
-```
-
-渲染完整视频：
-
-```bash
-npm run remotion:render
-```
-
-渲染后校验：
-
-```bash
-npm run validate:timeline:video
-```
-
-推荐完整顺序：
-
-```bash
-npm test
-npm run capture:daily-assets
-npm run build:episode
-npm run validate:timeline
-npm run remotion:still
-npm run remotion:render
-npm run validate:timeline:video
-```
+内部 `risk`、审核提醒、素材缺口提示只允许出现在报告或日志中，不允许进入观众成片。
 
 ## 项目结构
 
 ```text
 tech-news-automation/
-  config/                 新闻源、规则、筛选配置
-    visual-system.json    视频高级感、视觉角色和防重复规则
-  data/
-    assets/               原始素材、visual-beats.json
-    audio/                最终配音
-    daily/                每日新闻归档
-    production/           静帧、预览图、审查截图
-    selected/             五天筛选结果
-    subtitles/            与最终配音对齐的 SRT
-    video-scripts/        口播正文、分镜草稿
-    videos/               导出视频
-  docs/                   生产流程和质检文档
-  logs/                   自动化运行日志
-  prompts/                Codex 自动化提示词
-    visual_beat_planning.md  句级 visual beat 规划提示词
-  public/
-    assets/               Remotion 渲染用素材
-    audio/                Remotion 渲染用配音
-  reference/              同类视频、视觉风格参考
-  reports/                日报和筛选报告
-  scripts/                抓素材、构建视频数据、校验时间线脚本
-  src/                    Remotion 视频工程
+  config/                 新闻源、规则、视觉系统配置
+  data/                   每期源数据、音频、字幕、素材、视频产物
+  docs/                   流程、规范、质检文档
+  prompts/                新闻聚合和 visual beat 规划提示词
+  public/                 Remotion 可读取的音频与素材
+  reports/                日报、筛选报告、内部审查报告
+  scripts/                兼容入口、工具函数和测试
+  scripts/pipeline/       新闻、素材、构建、校验等流程脚本
+  src/
+    components/           Remotion 视觉组件库
+    data/                 当前可渲染 episode 数据
+    rendering/            时间线、素材选择、调度逻辑
+    types/                稳定类型定义
 ```
 
-## 当前关键脚本
+## 常用命令
 
-- `scripts/srt_utils.mjs`：解析和校验 SRT。
-- `scripts/visual_beats_utils.mjs`：校验 visual beats 时间合法性。
-- `config/visual-system.json`：定义视觉角色、转场比例、全局视觉参数和防重复规则。
-- `docs/advanced-video-methodology.md`：沉淀口播类科技视频高级感方法论。
-- `scripts/visual_beat_plan.mjs`：当前测试期的 beat 规划。
-- `scripts/capture_daily_assets.mjs`：按 beat 抓取真实素材或生成信息卡。
-- `scripts/build_episode_from_srt.mjs`：从最终 SRT、音频和素材生成 `src/videoData.ts`。
-- `scripts/validate_timeline.mjs`：校验音频、字幕、segments、visualBeats 和成片时长。
+```bash
+npm test
+npm run news:daily -- --date YYYY-MM-DD
+npm run news:select -- --date YYYY-MM-DD
+npm run news:aggregate:assets -- --date YYYY-MM-DD
+npm run capture:daily-assets -- YYYY-MM-DD
+npm run build:episode -- YYYY-MM-DD
+npm run validate:timeline
+```
 
-## 这次测试沉淀出的项目规则
+完整渲染命令保留，但不要把“能渲染出文件”等同于成片合格：
 
-- 后半段必须从你给的 MP3 和 SRT 开始，不再由 Codex 自行口播或估算字幕。
-- SRT 解决字幕对齐，visual beats 解决画面和口播句对齐。
-- 素材层级要克制，任何覆盖素材正文的外层标题都应该删除。
-- 字幕不能使用背景板，应保持参考截图式白字黑描边。
-- 每次完整渲染后必须人工抽查，而不是只看命令是否成功。
-- 发现遮挡、乱码、排版错误这类低级问题时，优先修复质量问题，再谈审美提升。
+```bash
+npm run remotion:still
+npm run remotion:render
+npm run validate:timeline:video
+```
 
-## 后续优化方向
+## 质量硬规则
 
-- 将每期数据从 `src/videoData.ts` 抽离为 `episodes/YYYY-MM-DD.json`。
-- 将 visual beat 规划从手工文件升级为从 SRT 和分镜草稿半自动生成。
-- 增加抽帧审查脚本，自动按 visual beat 中点导出审核图。
-- 增加视觉安全区规则，自动避免外层装饰压到素材正文和字幕。
-- 增加更多转场和素材动效模板，但所有动效都必须服从信息可读性。
+- 同一视觉角色不能连续超过 2 次。
+- 同一主体再次出现时，必须换表现方式。
+- 每 15 秒至少出现一次真实世界素材。
+- 每 20 秒至少出现一次图解或观点卡。
+- Logo 不能撑满超过 3 秒。
+- 截图必须有安全标注，不能让红框、箭头或放大镜指向空白。
+- 已经烙入标注的证据截图，Remotion 不再重复叠加第二层红框。
+- AI/抽象画面不能连续超过 12 秒。
+- 抽象画面后必须接现实素材或证据素材。
+- 观众画面不能出现“审核提醒”、`risk` 或内部制作提示。

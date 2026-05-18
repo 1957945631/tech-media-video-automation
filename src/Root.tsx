@@ -1,7 +1,7 @@
 import React from 'react';
 import {Composition} from 'remotion';
 import {TechNewsVideo} from './TechNewsVideo';
-import {videoData} from './videoData';
+import {videoData} from './data/currentEpisode';
 
 export const Root: React.FC = () => {
   return (

@@ -1,13 +1,39 @@
 {
-  "version": 1,
-  "positioning": "口播语义驱动的视频视觉系统",
-  "goal": "观众即使关闭声音，只看画面，也能大概理解视频在讲什么。",
+  "version": 2,
+  "positioning": "一周科技大事的口播语义驱动视觉系统",
+  "goal": "观众即使关闭声音，只看画面，也能知道本期在讲哪件科技事件、证据来自哪里、它影响谁。",
+  "channel_scope": {
+    "title": "一周科技大事",
+    "not": "一周 AI 大事",
+    "topic_categories": [
+      "AI",
+      "芯片与半导体",
+      "消费电子",
+      "互联网平台",
+      "云计算与数据中心",
+      "开源与软件供应链安全",
+      "机器人与自动驾驶",
+      "新能源与电力",
+      "航天与硬件",
+      "游戏与内容技术"
+    ],
+    "rule": "AI 可以是重点，但不能默认成为整期唯一主线。选题、脚本和素材必须体现科技产业的多样性。"
+  },
+  "component_library": {
+    "EvidenceCard": "新闻、官网、推文、财报、公告截图；必须使用安全标注，优先高亮标题、来源或关键段落区域，禁止固定箭头指向未知位置。",
+    "BrollCard": "真实视频素材优先，缺视频时使用真实照片或网页截图做推拉、扫描、裁切运动。",
+    "ConceptCard": "AI 网络、未来城市、数字大脑、芯片结构等抽象科技画面；不能连续超过 12 秒。",
+    "DiagramCard": "由 Remotion 生成商业逻辑、技术逻辑、产业链、时间线、因果关系图解。",
+    "KeywordPunch": "黄色大字观点卡，用于结论、反转、判断和段落落点。",
+    "HighlightEngine": "统一生成安全红框、宽区域强调、放大镜和说明标签；不使用固定坐标箭头。",
+    "TransitionPreset": "白闪、glitch、推近、扫描线和硬切，根据 beat 语义灵活选择。"
+  },
   "visual_roles": {
     "evidence": {
       "label": "证据截图",
       "use_for": ["新闻事实", "公告", "财报", "监管文件", "媒体原文"],
       "asset_priority": ["official_page", "trusted_media", "document", "annotated_screenshot"],
-      "required_treatment": ["highlight_box_or_arrow", "source_label", "readable_body"]
+      "required_treatment": ["safe_focus_area", "source_label", "readable_body", "no_fixed_directional_arrow"]
     },
     "product_ui": {
       "label": "产品 UI",
@@ -24,7 +50,7 @@
     "broll": {
       "label": "真实场景 b-roll",
       "use_for": ["产业现实", "工厂", "数据中心", "会议", "城市", "消费场景"],
-      "asset_priority": ["real_footage", "official_video", "news_video_still"],
+      "asset_priority": ["real_footage", "official_video", "news_video_still", "real_photo"],
       "required_treatment": ["slow_push", "vignette", "low_saturation"]
     },
     "concept": {
@@ -46,31 +72,36 @@
       "required_treatment": ["8_to_16_chars", "judgment_sentence", "yellow_punch"]
     }
   },
-  "rotation_formula": [
+  "asset_inventory_targets": {
+    "evidence_screenshot": {"min": 8, "max": 15},
+    "product_ui": {"min": 5, "max": 10},
+    "real_broll": {"min": 20, "max": 35},
+    "abstract_tech": {"min": 8, "max": 15},
+    "remotion_diagram": {"min": 5, "max": 10},
+    "yellow_opinion_card": {"min": 6, "max": 10},
+    "annotation": {"min": 10, "max": 20}
+  },
+  "preferred_rhythm": [
     "evidence",
     "person_or_company",
     "product_ui",
     "broll",
+    "industry_reality",
     "diagram",
-    "keyword",
-    "concept"
+    "keyword"
   ],
-  "transition_ratio": {
-    "cut": 0.7,
-    "flash": 0.15,
-    "glitch": 0.1,
-    "zoom": 0.03,
-    "scan": 0.02
-  },
   "quality_rules": {
     "max_consecutive_same_visual_role": 2,
     "real_world_asset_interval_seconds": 15,
     "diagram_or_keyword_interval_seconds": 20,
     "max_logo_fullscreen_seconds": 3,
     "max_concept_continuous_seconds": 12,
-    "min_information_change_interval_seconds": 10,
     "require_highlight_for_evidence": true,
-    "forbid_unmodified_duplicate_asset": true
+    "forbid_fixed_directional_arrow": true,
+    "prefer_safe_title_source_key_paragraph_highlight": true,
+    "forbid_internal_audit_text_in_video": true,
+    "forbid_unmodified_duplicate_asset": true,
+    "abstract_must_be_followed_by_real_or_evidence": true
   },
   "style_preset": {
     "fps": 30,
@@ -80,7 +111,7 @@
     "noiseOpacity": 0.08,
     "vignetteOpacity": 0.45,
     "chromaticOffset": 1.5,
-    "cardRadius": 28,
+    "cardRadius": 16,
     "cardBorderOpacity": 0.25,
     "imageContrast": 1.15,
     "imageSaturation": 0.85,
