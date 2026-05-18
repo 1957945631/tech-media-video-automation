@@ -9,7 +9,7 @@ const root = process.cwd();
 const dataPath = path.join(root, 'src', 'data', 'currentEpisode.ts');
 const videoPath = process.argv[2] ? path.resolve(root, process.argv[2]) : null;
 
-const read = (file) => fs.readFileSync(file, 'utf8');
+const read = (file) => fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
 const round = (n) => Math.round(n * 1000) / 1000;
 
 const extractNumber = (source, pattern, label) => {
