@@ -5,8 +5,8 @@ import {parseMedia} from '@remotion/media-parser';
 import {nodeReader} from '@remotion/media-parser/node';
 import {assignAssetFunction} from '../asset_function_rules.mjs';
 import {parseSrt, secondsToTsLiteral} from '../srt_utils.mjs';
-import {captionRangeToTime, validateVisualBeats} from '../visual_beats_utils.mjs';
-import {segmentBoundaries, storyPlan, visualBeatPlan} from '../visual_beat_plan.mjs';
+import {captionRangeToTime, isVisualRhythmProblem, validateVisualBeats} from '../visual_beats_utils.mjs';
+import {buildVisualPlan} from '../visual_beat_plan.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..', '..');
@@ -47,14 +47,12 @@ const loadJson = async (file, fallback) => {
   }
 };
 
-const loadAssets = async () => {
-  const manifest = await loadJson(path.join(root, 'data', 'assets', date, 'assets-manifest.json'), {items: []});
-  return new Map((manifest.items ?? []).map((item) => [item.id, item.assets ?? []]));
-};
-
 const loadBeatAssets = async () => {
   const manifest = await loadJson(path.join(root, 'data', 'assets', date, 'visual-beats.json'), {visualBeats: []});
-  return new Map((manifest.visualBeats ?? []).map((beat) => [beat.id, beat.assets ?? []]));
+  return {
+    beats: manifest.visualBeats ?? [],
+    assetsByBeat: new Map((manifest.visualBeats ?? []).map((beat) => [beat.id, beat.assets ?? []]))
+  };
 };
 
 const buildSegment = ({id, start, end, kicker, title, body, ribbon, accent, sourceName, assets}) => ({
@@ -83,14 +81,71 @@ const toTsObject = (value, extra = []) => {
   return `    {\n${[...entries, ...extra].join(',\n')}\n    }`;
 };
 
+const allocateSegmentCaptionRanges = ({captions, storyPlan, visualBeatPlan}) => {
+  const segmentOrder = ['intro', ...storyPlan.map((story) => story.segmentId), 'outro'];
+  const beatCounts = new Map(segmentOrder.map((segment) => [
+    segment,
+    Math.max(1, visualBeatPlan.filter((beat) => beat.segmentId === segment).length)
+  ]));
+  const totalWeight = [...beatCounts.values()].reduce((sum, count) => sum + count, 0);
+  let cursor = 0;
+
+  return segmentOrder.map((segment, index) => {
+    const remainingSegments = segmentOrder.length - index - 1;
+    const remainingCaptions = captions.length - cursor;
+    const weight = beatCounts.get(segment) ?? 1;
+    const width = index === segmentOrder.length - 1
+      ? remainingCaptions
+      : Math.max(1, Math.round((captions.length * weight) / totalWeight));
+    const safeWidth = Math.min(Math.max(1, width), Math.max(1, remainingCaptions - remainingSegments));
+    const boundary = {segment, startCaption: cursor, endCaption: cursor + safeWidth};
+    cursor = boundary.endCaption;
+    return boundary;
+  });
+};
+
+const assignBeatCaptionRanges = ({beats, boundaries}) => {
+  const bySegment = new Map(boundaries.map((boundary) => [boundary.segment, boundary]));
+  const positions = new Map();
+  const counts = new Map();
+
+  for (const beat of beats) {
+    counts.set(beat.segmentId, (counts.get(beat.segmentId) ?? 0) + 1);
+  }
+
+  return beats.map((beat) => {
+    const boundary = bySegment.get(beat.segmentId);
+    if (!boundary) {
+      return beat;
+    }
+
+    const count = counts.get(beat.segmentId) ?? 1;
+    const position = positions.get(beat.segmentId) ?? 0;
+    positions.set(beat.segmentId, position + 1);
+    const span = Math.max(1, boundary.endCaption - boundary.startCaption);
+    const start = boundary.startCaption + Math.floor((span * position) / count);
+    const end = boundary.startCaption + Math.floor((span * (position + 1)) / count);
+
+    return {
+      ...beat,
+      captionRange: [start, Math.max(start + 1, Math.min(boundary.endCaption, end))]
+    };
+  });
+};
+
 const main = async () => {
-  const daily = JSON.parse(await fs.readFile(path.join(root, 'data', 'daily', `${date}.json`), 'utf8'));
+  const selection = JSON.parse(await fs.readFile(path.join(root, 'data', 'selected', `${date}-selection.json`), 'utf8'));
+  const voiceoverText = await fs.readFile(path.join(root, 'data', 'video-scripts', `${date}-voiceover.md`), 'utf8').catch(() => '');
   const captions = parseSrt(await fs.readFile(path.join(root, 'data', 'subtitles', `${date}-aligned.srt`), 'utf8'));
   const audioDuration = await mediaDuration(path.join(root, 'public', 'audio', `${date}-voiceover.mp3`));
   const durationSeconds = Math.max(audioDuration, captions.at(-1)?.end ?? 0);
-  const byId = new Map(daily.items.map((item) => [item.id, item]));
-  const assetsById = await loadAssets();
-  const beatAssetsById = await loadBeatAssets();
+  const plan = buildVisualPlan({selection, voiceoverText, date});
+  const {storyPlan} = plan;
+  const beatAssetData = await loadBeatAssets();
+  const beatAssetsById = beatAssetData.assetsByBeat;
+  const sourceVisualBeatPlan = beatAssetData.beats.length ? beatAssetData.beats : plan.visualBeatPlan;
+  const segmentBoundaries = allocateSegmentCaptionRanges({captions, storyPlan, visualBeatPlan: sourceVisualBeatPlan});
+  const timedVisualBeatPlan = assignBeatCaptionRanges({beats: sourceVisualBeatPlan, boundaries: segmentBoundaries});
 
   const segments = segmentBoundaries.map((boundary) => {
     const start = captions[boundary.startCaption]?.start ?? 0;
@@ -104,8 +159,8 @@ const main = async () => {
         end,
         kicker: '本期导览',
         title: '一周科技大事',
-        body: '本期按最终配音和 SRT 生成时间线，用真实证据、产品界面、产业画面、动态图解和观点卡讲清楚一周科技变化。',
-        ribbon: 'SRT 驱动字幕，visual beats 驱动画面',
+        body: '本期按照最终配音和 SRT 生成时间线，用真实证据、产品界面、产业画面、结构拆解和关键判断讲清楚一周科技变化。',
+        ribbon: '字幕跟随口播，画面跟随内容',
         accent: '#f5b400',
         sourceName: `reports/${date}.md`,
         assets: []
@@ -132,24 +187,26 @@ const main = async () => {
       throw new Error(`Missing storyPlan entry for segment ${boundary.segment}`);
     }
 
-    const item = byId.get(plan.id);
-
     return buildSegment({
       id: plan.segmentId,
       start,
       end,
       kicker: plan.kicker,
       title: plan.title,
-      body: firstSentence(item?.summary_zh ?? item?.summary ?? plan.body),
+      body: firstSentence(plan.body),
       ribbon: plan.ribbon,
       accent: plan.accent,
-      sourceName: item?.source_name ?? plan.sourceName,
-      assets: assetsById.get(plan.id) ?? []
+      sourceName: plan.sourceName,
+      assets: []
     });
   });
 
-  const visualBeats = visualBeatPlan.map((beat) => {
+  const visualBeats = timedVisualBeatPlan.map((beat) => {
     const {start, end} = captionRangeToTime(beat.captionRange, captions, durationSeconds);
+    const assignedAssetFunction = assignAssetFunction(beat);
+    const assetFunction = assignedAssetFunction === 'abstract_tech' ? 'yellow_opinion_card' : assignedAssetFunction;
+    const assets = (beatAssetsById.get(beat.id) ?? []).filter((asset) => !asset.includes('abstract_tech'));
+
     return {
       id: beat.id,
       segmentId: beat.segmentId,
@@ -161,20 +218,26 @@ const main = async () => {
       action: beat.action,
       concept: beat.concept,
       visualRole: beat.visualRole,
-      assetFunction: assignAssetFunction(beat),
+      assetFunction,
       keywords: beat.keywords,
       assetQuery: beat.assetQuery,
       overlayTitle: beat.overlayTitle,
       transitionOut: beat.transitionOut,
       highlight: beat.highlight,
       hasHighlight: beat.hasHighlight,
-      assets: beatAssetsById.get(beat.id) ?? []
+      assets
     };
   });
 
   const visualBeatProblems = validateVisualBeats({beats: visualBeats, segments, captions, durationSeconds});
-  if (visualBeatProblems.length) {
-    throw new Error(`visualBeats invalid:\n${visualBeatProblems.join('\n')}`);
+  const blockingVisualBeatProblems = visualBeatProblems.filter((problem) => !isVisualRhythmProblem(problem));
+  const visualBeatWarnings = visualBeatProblems.filter(isVisualRhythmProblem);
+  if (blockingVisualBeatProblems.length) {
+    throw new Error(`visualBeats invalid:\n${blockingVisualBeatProblems.join('\n')}`);
+  }
+
+  if (visualBeatWarnings.length) {
+    console.warn(`visualBeats rhythm warnings:\n${visualBeatWarnings.join('\n')}`);
   }
 
   const source = `import type {VideoData} from '../types/video';

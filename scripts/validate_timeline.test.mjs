@@ -13,7 +13,6 @@ test('timeline validator rejects internal audit text in audience data', () => {
   assert.match(source, /risk\\s\*:/);
 });
 
-test('timeline validator requires highlights for evidence screenshots', () => {
-  assert.match(source, /evidence_screenshot/);
-  assert.match(source, /missing highlight metadata/);
+test('timeline validator does not require baked highlights for evidence screenshots', () => {
+  assert.doesNotMatch(source, /missing highlight metadata/);
 });

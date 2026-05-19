@@ -20,6 +20,12 @@ const clampText = (text: string, max = 34) => {
   return text.length > max ? `${text.slice(0, max - 1)}...` : text;
 };
 
+const durationLabel = (data: VideoData) => {
+  const seconds = data.durationInFrames / data.fps;
+  const minutes = Math.max(1, Math.ceil(seconds / 60));
+  return `${minutes}分钟看完`;
+};
+
 const Background: React.FC = () => {
   const frame = useCurrentFrame();
   const drift = interpolate(frame % 240, [0, 240], [0, -82], {
@@ -73,11 +79,11 @@ const TopBrand: React.FC = () => (
   </div>
 );
 
-const BottomTitle: React.FC = () => (
+const BottomTitle: React.FC<{durationText: string}> = ({durationText}) => (
   <div style={{position: 'absolute', left: 66, right: 66, top: 1302}}>
     <div style={{position: 'absolute', left: -24, top: 8, width: 11, height: 202, background: '#f5b400'}} />
     <div style={{fontSize: 82, lineHeight: 1.05, color: 'white', fontWeight: 950, fontStyle: 'italic', textShadow: '0 8px 18px #000'}}>
-      3分钟看完
+      {durationText}
     </div>
     <div style={{marginTop: 14, fontSize: 72, lineHeight: 1.04, color: 'white', fontWeight: 950, fontStyle: 'italic', textShadow: '0 8px 18px #000'}}>
       {COLUMN_TITLE}
@@ -145,7 +151,7 @@ export const TechNewsVideo: React.FC<Props> = ({data}) => {
       <Background />
       <TopBrand />
       <VisualStage segment={segment} beat={beat} second={second} />
-      <BottomTitle />
+      <BottomTitle durationText={durationLabel(data)} />
       <CaptionBar text={caption?.text ?? null} />
       <TransitionPreset name={beat?.transitionOut ?? 'cut'} progress={progress} />
     </AbsoluteFill>

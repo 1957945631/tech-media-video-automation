@@ -46,7 +46,6 @@ test('validateVisualBeats accepts beats aligned to caption ranges inside segment
       keywords: ['a'],
       overlayTitle: 'News',
       transitionOut: 'flash',
-      hasHighlight: true,
       assets: ['assets/news.png']
     }
   ];

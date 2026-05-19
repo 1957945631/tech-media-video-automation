@@ -1,849 +1,504 @@
-export const storyPlan = [
-  {
-    id: 'openai-deployment-company',
-    segmentId: 'news_1',
-    kicker: '企业落地',
-    title: 'OpenAI 不只卖模型',
-    body: 'OpenAI 推出 Deployment Company，把竞争从模型能力推向企业工作流改造。',
-    ribbon: 'AI 进入真实业务现场',
-    accent: '#f5b400',
-    sourceName: 'OpenAI',
-    risk: '官方发布，口播避免夸大企业落地效果'
-  },
-  {
-    id: 'gpt-55-early-access',
-    segmentId: 'news_2',
-    kicker: '模型前沿',
-    title: 'GPT-5.5 争论继续',
-    body: '早期体验文章显示，行业对前沿模型是否进入平台期仍没有共识。',
-    ribbon: '能力提升仍在发生',
-    accent: '#5eead4',
-    sourceName: 'One Useful Thing',
-    risk: '非官方体验文章，需标注为作者观点'
-  },
-  {
-    id: 'google-gemini-intelligence',
-    segmentId: 'news_3',
-    kicker: '手机系统',
-    title: '手机 AI 开始主动理解',
-    body: 'Google 预热 Gemini Intelligence，重点是让手机系统理解上下文并主动完成任务。',
-    ribbon: 'AI 从入口变成系统能力',
-    accent: '#8ab4f8',
-    sourceName: 'Google Blog',
-    risk: '官方预热，最终功能以发布版本为准'
-  },
-  {
-    id: 'apple-ai-agent-app-store',
-    segmentId: 'news_4',
-    kicker: '平台规则',
-    title: 'AI Agent 会进 App Store 吗',
-    body: 'Apple 被曝研究 AI Agent 分发规则，平台审核、收费和责任边界会成为新问题。',
-    ribbon: 'App Store 面对代理时代',
-    accent: '#ffffff',
-    sourceName: 'MacRumors',
-    risk: '媒体报道，需标注尚待 Apple 官方确认'
-  },
-  {
-    id: 'tsmc-ai-chip-market',
-    segmentId: 'news_5',
-    kicker: '芯片账单',
-    title: 'AI 改写半导体预期',
-    body: 'TSMC 上调全球芯片市场长期展望，AI 和高性能计算成为核心动力。',
-    ribbon: '算力需求推高产业预期',
-    accent: '#60a5fa',
-    sourceName: 'Reuters via MarketScreener',
-    risk: '市场预测类信息，口播需保留“预计”表述'
-  },
-  {
-    id: 'anthropic-ai-chip-policy',
-    segmentId: 'news_6',
-    kicker: '政策监管',
-    title: 'AI 竞争进入政策层',
-    body: 'Anthropic 呼吁强化对华 AI 芯片控制，AI 竞争正与地缘政治和监管绑定。',
-    ribbon: '技术竞争变成组合战',
-    accent: '#f87171',
-    sourceName: 'Axios',
-    risk: '政策立场来自公司材料和媒体报道'
-  },
-  {
-    id: 'tanstack-npm-supply-chain',
-    segmentId: 'news_7',
-    kicker: '开发安全',
-    title: '开源供应链风险放大',
-    body: 'OpenAI 回应 TanStack npm 供应链攻击，提醒 AI 开发链路越自动化，安全影响越容易扩大。',
-    ribbon: 'AI 工具背后的软件生态',
-    accent: '#a78bfa',
-    sourceName: 'OpenAI Newsroom',
-    risk: '偏开发者安全议题，需解释和普通用户的关系'
-  }
+import fs from 'node:fs/promises';
+import path from 'node:path';
+
+const accentPalette = ['#f5b400', '#5eead4', '#8ab4f8', '#f87171', '#60a5fa', '#a78bfa', '#34d399'];
+
+const categoryKickers = [
+  [/ai|大模型|模型|agent|智能/i, 'AI 落地'],
+  [/芯片|半导体|算力|能源|电力|数据中心/i, '基础设施'],
+  [/监管|政策|安全|供应链|治理/i, '规则与风险'],
+  [/手机|硬件|设备|消费|终端/i, '终端体验'],
+  [/开源|开发|npm|github/i, '开发生态']
 ];
 
-export const segmentBoundaries = [
-  {segment: 'intro', startCaption: 0, endCaption: 15},
-  {segment: 'news_1', startCaption: 15, endCaption: 37},
-  {segment: 'news_2', startCaption: 37, endCaption: 57},
-  {segment: 'news_3', startCaption: 57, endCaption: 78},
-  {segment: 'news_4', startCaption: 78, endCaption: 94},
-  {segment: 'news_5', startCaption: 94, endCaption: 111},
-  {segment: 'news_6', startCaption: 111, endCaption: 123},
-  {segment: 'news_7', startCaption: 123, endCaption: 136},
-  {segment: 'outro', startCaption: 136, endCaption: 145}
-];
+const stopWords = new Set([
+  'https',
+  'http',
+  'www',
+  'com',
+  'the',
+  'and',
+  'for',
+  'with',
+  'from',
+  'that',
+  'this',
+  'news',
+  'daily',
+  '2026',
+  '2025'
+]);
 
-const evidenceHighlight = {
-  kind: 'source-callout',
-  marker: 'yellow underline',
-  note: '标出标题、来源名或核心数字'
+const asArray = (value) => (Array.isArray(value) ? value : []);
+
+const compact = (value, limit = 36) => {
+  const text = String(value ?? '').replace(/\s+/g, ' ').trim();
+  return text.length > limit ? `${text.slice(0, limit - 1)}…` : text;
 };
 
-export const visualBeatPlan = [
-  {
-    id: 'intro-thesis',
-    segmentId: 'intro',
-    captionRange: [0, 4],
-    intent: '建立本期总论点：AI 从能力竞赛转向落地竞赛。',
-    subject: '本期科技主线',
-    action: '提出主题',
-    concept: '模型能力竞赛到真实世界落地竞赛',
-    visualRole: 'keyword',
-    keywords: ['不只看模型', '看谁能落地'],
-    assetQuery: ['AI deployment enterprise workflow smartphone chip regulation'],
-    overlayTitle: 'AI 进入落地竞赛',
-    transitionOut: 'cut'
-  },
-  {
-    id: 'intro-old-metrics',
-    segmentId: 'intro',
-    captionRange: [4, 8],
-    intent: '回顾过去的评价指标：聪明、参数、榜单。',
-    subject: '模型竞赛旧指标',
-    action: '对比旧阶段',
-    concept: '参数和榜单不是唯一重点',
-    visualRole: 'broll',
-    keywords: ['参数', '榜单', '能力'],
-    assetQuery: ['AI benchmark leaderboard model parameters'],
-    overlayTitle: '过去：比模型分数',
-    transitionOut: 'cut'
-  },
-  {
-    id: 'intro-new-questions',
-    segmentId: 'intro',
-    captionRange: [8, 12],
-    intent: '把一周新闻抽象成五个落地问题。',
-    subject: '企业、手机、平台、监管、芯片',
-    action: '拆出问题框架',
-    concept: 'AI 落地链路',
-    visualRole: 'diagram',
-    keywords: ['进企业', '进手机', '进平台'],
-    assetQuery: ['AI workflow diagram enterprise mobile app store regulation chips'],
-    overlayTitle: '现在：看怎么进入现实',
-    transitionOut: 'flash'
-  },
-  {
-    id: 'intro-support-chain',
-    segmentId: 'intro',
-    captionRange: [12, 15],
-    intent: '强调监管和芯片支撑是 AI 落地的一部分。',
-    subject: '监管和芯片产业',
-    action: '补齐支撑条件',
-    concept: '技术落地需要规则和基础设施',
-    visualRole: 'broll',
-    keywords: ['监管', '芯片', '基础设施'],
-    assetQuery: ['AI regulation semiconductor data center'],
-    overlayTitle: '落地要靠基础设施',
-    transitionOut: 'cut'
-  },
-  {
-    id: 'openai-source',
-    segmentId: 'news_1',
-    captionRange: [15, 17],
-    intent: '进入第一条新闻并展示 OpenAI 官方来源。',
-    subject: 'OpenAI Deployment Company',
-    action: '发布企业部署业务',
-    concept: 'AI 公司从模型供应商变成落地服务商',
-    visualRole: 'evidence',
-    keywords: ['OpenAI', '企业部署', 'Deployment'],
-    assetQuery: ['OpenAI Deployment Company official announcement'],
-    overlayTitle: '第一件事：OpenAI 做部署',
-    transitionOut: 'cut',
-    highlight: evidenceHighlight
-  },
-  {
-    id: 'openai-workflow-map',
-    segmentId: 'news_1',
-    captionRange: [17, 20],
-    intent: '解释不是聊天机器人，而是工作流、系统和现场部署。',
-    subject: '企业工作流',
-    action: '被 AI 改造',
-    concept: 'AI 嵌入内部系统',
-    visualRole: 'diagram',
-    keywords: ['工作流', '内部系统', '业务现场'],
-    assetQuery: ['enterprise AI workflow internal systems diagram'],
-    overlayTitle: '不是入口，是流程改造',
-    transitionOut: 'cut'
-  },
-  {
-    id: 'openai-business-model',
-    segmentId: 'news_1',
-    captionRange: [20, 23],
-    intent: '说明商业模式从卖模型转向改造工作方式。',
-    subject: 'AI 公司商业模式',
-    action: '转向服务落地',
-    concept: '模型即服务到部署即服务',
-    visualRole: 'product_ui',
-    keywords: ['卖模型', '改造工作', '客户现场'],
-    assetQuery: ['OpenAI enterprise AI workflow product screenshot'],
-    overlayTitle: '从卖模型到改工作',
-    transitionOut: 'cut'
-  },
-  {
-    id: 'openai-stage-shift',
-    segmentId: 'news_1',
-    captionRange: [23, 25],
-    intent: '点明第一条的阶段转换意义。',
-    subject: 'AI 竞争阶段',
-    action: '发生转换',
-    concept: '从能力竞争到业务渗透',
-    visualRole: 'keyword',
-    keywords: ['竞争换阶段', '进入业务'],
-    assetQuery: ['AI adoption enterprise transformation keyword card'],
-    overlayTitle: '竞争换阶段',
-    transitionOut: 'flash'
-  },
-  {
-    id: 'openai-answer-vs-work',
-    segmentId: 'news_1',
-    captionRange: [25, 29],
-    intent: '用一句对比强化从回答问题到进入业务。',
-    subject: '模型能力和业务能力',
-    action: '形成对比',
-    concept: '答得好不等于用得上',
-    visualRole: 'broll',
-    keywords: ['回答更好', '进入业务'],
-    assetQuery: ['office workers AI software workflow'],
-    overlayTitle: '从答得好到用得上',
-    transitionOut: 'cut'
-  },
-  {
-    id: 'openai-user-touchpoints',
-    segmentId: 'news_1',
-    captionRange: [29, 31],
-    intent: '把影响落到普通人的工作系统接触点。',
-    subject: '普通人的 AI 接触方式',
-    action: '从聊天窗口迁移到系统里',
-    concept: 'AI 成为工作软件的内置能力',
-    visualRole: 'product_ui',
-    keywords: ['公司系统', '客服流程', '文档处理'],
-    assetQuery: ['customer support AI document processing dashboard'],
-    overlayTitle: 'AI 会嵌进系统里',
-    transitionOut: 'cut'
-  },
-  {
-    id: 'openai-touchpoint-map',
-    segmentId: 'news_1',
-    captionRange: [31, 33],
-    intent: '把公司系统、客服流程和文档处理整理成触点地图。',
-    subject: '企业 AI 触点',
-    action: '串联成工作流程',
-    concept: 'AI 嵌入多个业务节点',
-    visualRole: 'diagram',
-    keywords: ['公司系统', '客服流程', '文档处理'],
-    assetQuery: ['enterprise AI touchpoint map customer support documents analytics'],
-    overlayTitle: 'AI 进入多个业务节点',
-    transitionOut: 'cut'
-  },
-  {
-    id: 'openai-embedded-ai',
-    segmentId: 'news_1',
-    captionRange: [33, 37],
-    intent: '收束第一条：AI 被嵌进具体流程。',
-    subject: '嵌入式 AI',
-    action: '出现在数据分析和业务流程',
-    concept: '无感嵌入比单独入口更重要',
-    visualRole: 'keyword',
-    keywords: ['嵌进流程', '无感使用'],
-    assetQuery: ['embedded AI workflow analytics'],
-    overlayTitle: 'AI 不一定有入口',
-    transitionOut: 'cut'
-  },
-  {
-    id: 'gpt55-source',
-    segmentId: 'news_2',
-    captionRange: [37, 40],
-    intent: '进入 GPT-5.5 早期体验讨论并标明来源。',
-    subject: 'One Useful Thing 文章',
-    action: '讨论 GPT-5.5',
-    concept: '非官方体验信号',
-    visualRole: 'evidence',
-    keywords: ['GPT-5.5', '早期体验', '观点文章'],
-    assetQuery: ['One Useful Thing GPT-5.5 article'],
-    overlayTitle: '第二件事：GPT-5.5 讨论',
-    transitionOut: 'cut',
-    highlight: evidenceHighlight
-  },
-  {
-    id: 'gpt55-capability-line',
-    segmentId: 'news_2',
-    captionRange: [40, 42],
-    intent: '提炼文章观点：前沿模型仍在提升。',
-    subject: '前沿模型能力',
-    action: '继续提升',
-    concept: '能力曲线未必平台化',
-    visualRole: 'diagram',
-    keywords: ['前沿模型', '继续提升'],
-    assetQuery: ['AI capability curve chart'],
-    overlayTitle: '能力曲线还在走',
-    transitionOut: 'cut'
-  },
-  {
-    id: 'gpt55-caveat',
-    segmentId: 'news_2',
-    captionRange: [42, 47],
-    intent: '强调这不是官方发布，而是行业信号。',
-    subject: '行业争论',
-    action: '尚未结束',
-    concept: '平台期争论',
-    visualRole: 'product_ui',
-    keywords: ['非官方', '平台期', '争论'],
-    assetQuery: ['AI model discussion blog comments'],
-    overlayTitle: '不是发布会，是信号',
-    transitionOut: 'cut'
-  },
-  {
-    id: 'gpt55-not-stagnant',
-    segmentId: 'news_2',
-    captionRange: [47, 50],
-    intent: '说明 AI 没有简单进入存量竞争。',
-    subject: 'AI 行业状态',
-    action: '继续变化',
-    concept: '模型和场景同步扩张',
-    visualRole: 'keyword',
-    keywords: ['没有停下', '场景变多'],
-    assetQuery: ['AI market growth model apps keyword'],
-    overlayTitle: '不是存量竞争',
-    transitionOut: 'flash'
-  },
-  {
-    id: 'gpt55-scenes-grow',
-    segmentId: 'news_2',
-    captionRange: [50, 54],
-    intent: '把影响落到产品体验变化。',
-    subject: 'AI 产品体验',
-    action: '逐步变化',
-    concept: '稳定性和上下文理解提升',
-    visualRole: 'broll',
-    keywords: ['产品体验', '稳定', '上下文'],
-    assetQuery: ['AI assistant product experience context understanding'],
-    overlayTitle: '体验变化会更细',
-    transitionOut: 'cut'
-  },
-  {
-    id: 'gpt55-complex-tasks',
-    segmentId: 'news_2',
-    captionRange: [54, 57],
-    intent: '收束为模型能处理更复杂任务。',
-    subject: '复杂任务处理',
-    action: '变得更可靠',
-    concept: '能力提升体现在复杂任务',
-    visualRole: 'diagram',
-    keywords: ['复杂任务', '更可靠'],
-    assetQuery: ['AI complex task workflow diagram'],
-    overlayTitle: '复杂任务才是真考验',
-    transitionOut: 'cut'
-  },
-  {
-    id: 'google-source',
-    segmentId: 'news_3',
-    captionRange: [57, 60],
-    intent: '进入 Google Android Show 和 Gemini Intelligence。',
-    subject: 'Google Gemini Intelligence',
-    action: '在 Android Show 预热',
-    concept: '系统级 AI',
-    visualRole: 'evidence',
-    keywords: ['Google', 'Android', 'Gemini'],
-    assetQuery: ['Google Android Show Gemini Intelligence official blog'],
-    overlayTitle: '第三件事：手机系统级 AI',
-    transitionOut: 'cut',
-    highlight: evidenceHighlight
-  },
-  {
-    id: 'google-not-entry',
-    segmentId: 'news_3',
-    captionRange: [60, 63],
-    intent: '说明重点不是多一个入口，而是系统理解上下文。',
-    subject: '手机系统',
-    action: '理解上下文并主动完成任务',
-    concept: 'AI 从应用入口变成系统能力',
-    visualRole: 'product_ui',
-    keywords: ['系统理解', '主动任务', '上下文'],
-    assetQuery: ['Android Gemini AI phone interface'],
-    overlayTitle: '不只是多一个入口',
-    transitionOut: 'cut'
-  },
-  {
-    id: 'google-context-diagram',
-    segmentId: 'news_3',
-    captionRange: [63, 65],
-    intent: '用图解说明手机系统理解上下文并主动完成任务。',
-    subject: '手机上下文系统',
-    action: '把信息和任务连接起来',
-    concept: '系统级上下文理解',
-    visualRole: 'diagram',
-    keywords: ['理解上下文', '主动任务'],
-    assetQuery: ['mobile AI context understanding task diagram'],
-    overlayTitle: '系统开始理解上下文',
-    transitionOut: 'cut'
-  },
-  {
-    id: 'google-assistant-shift',
-    segmentId: 'news_3',
-    captionRange: [65, 68],
-    intent: '对比旧助手和新系统能力。',
-    subject: '手机 AI 助手',
-    action: '从问答变成主动协作',
-    concept: '助手到代理',
-    visualRole: 'broll',
-    keywords: ['旧助手', '新代理'],
-    assetQuery: ['AI assistant to agent diagram mobile'],
-    overlayTitle: '从问答到协作',
-    transitionOut: 'cut'
-  },
-  {
-    id: 'google-context',
-    segmentId: 'news_3',
-    captionRange: [68, 72],
-    intent: '说明系统知道用户正在看什么、要做什么。',
-    subject: '上下文感知',
-    action: '连接搜索、浏览器、应用和系统',
-    concept: '跨应用任务链',
-    visualRole: 'broll',
-    keywords: ['正在看什么', '要做什么', '连起来'],
-    assetQuery: ['mobile multitasking search browser apps AI'],
-    overlayTitle: '手机开始懂上下文',
-    transitionOut: 'cut'
-  },
-  {
-    id: 'google-user-impact',
-    segmentId: 'news_3',
-    captionRange: [72, 75],
-    intent: '指出对普通人的直接影响。',
-    subject: '普通手机用户',
-    action: '减少手动切换',
-    concept: 'AI 降低操作成本',
-    visualRole: 'keyword',
-    keywords: ['少切应用', '主动帮忙'],
-    assetQuery: ['smartphone AI productivity user impact'],
-    overlayTitle: '手机不只等你点',
-    transitionOut: 'flash'
-  },
-  {
-    id: 'google-actions',
-    segmentId: 'news_3',
-    captionRange: [75, 78],
-    intent: '落到整理信息、完成操作、减少切换成本。',
-    subject: '手机 AI 操作能力',
-    action: '辅助完成具体动作',
-    concept: '系统级任务自动化',
-    visualRole: 'product_ui',
-    keywords: ['整理信息', '完成操作', '减少切换'],
-    assetQuery: ['Android AI summarize complete actions'],
-    overlayTitle: '把操作串起来',
-    transitionOut: 'cut'
-  },
-  {
-    id: 'apple-source',
-    segmentId: 'news_4',
-    captionRange: [78, 81],
-    intent: '进入 Apple AI Agent 与 App Store 传闻。',
-    subject: 'Apple AI Agent',
-    action: '被曝研究进入 App Store',
-    concept: 'AI Agent 分发规则',
-    visualRole: 'evidence',
-    keywords: ['Apple', 'AI Agent', 'App Store'],
-    assetQuery: ['MacRumors Apple AI Agent apps App Store'],
-    overlayTitle: '第四件事：Agent 进商店？',
-    transitionOut: 'cut',
-    highlight: evidenceHighlight
-  },
-  {
-    id: 'apple-caveat',
-    segmentId: 'news_4',
-    captionRange: [81, 84],
-    intent: '标注报道性质，并提出 App Store 新规则问题。',
-    subject: 'App Store 规则',
-    action: '面临新问题',
-    concept: 'AI Agent 像 App 一样分发',
-    visualRole: 'diagram',
-    keywords: ['报道待确认', '平台规则', '分发'],
-    assetQuery: ['App Store AI agent distribution rules diagram'],
-    overlayTitle: '平台规则要重写吗',
-    transitionOut: 'cut'
-  },
-  {
-    id: 'apple-agent-distribution',
-    segmentId: 'news_4',
-    captionRange: [84, 87],
-    intent: '展示 AI Agent 像 App 一样分发时的产品和平台关系。',
-    subject: 'AI Agent 分发',
-    action: '进入平台生态',
-    concept: '代理应用化',
-    visualRole: 'product_ui',
-    keywords: ['Agent分发', 'App Store', '平台生态'],
-    assetQuery: ['AI agent app store distribution product UI'],
-    overlayTitle: 'Agent 也可能像 App 一样分发',
-    transitionOut: 'cut'
-  },
-  {
-    id: 'apple-review-fees',
-    segmentId: 'news_4',
-    captionRange: [87, 91],
-    intent: '用审核、收费、责任三个问题具体化。',
-    subject: '审核、收费和责任',
-    action: '成为新争议',
-    concept: '代理行为的责任边界',
-    visualRole: 'keyword',
-    keywords: ['怎么审核', '怎么收费', '责任算谁'],
-    assetQuery: ['AI agent app review fees responsibility'],
-    overlayTitle: '审核、收费、责任',
-    transitionOut: 'flash'
-  },
-  {
-    id: 'apple-platform-era',
-    segmentId: 'news_4',
-    captionRange: [91, 94],
-    intent: '收束为平台如何适应 AI 代理时代。',
-    subject: '平台规则',
-    action: '适应 AI 代理时代',
-    concept: '代理时代的平台治理',
-    visualRole: 'product_ui',
-    keywords: ['平台治理', '代理时代'],
-    assetQuery: ['App Store developer rules AI agent'],
-    overlayTitle: '不是苹果一家小事',
-    transitionOut: 'cut'
-  },
-  {
-    id: 'tsmc-source',
-    segmentId: 'news_5',
-    captionRange: [94, 96],
-    intent: '进入 TSMC 上调芯片市场展望。',
-    subject: 'TSMC 半导体展望',
-    action: '上调长期预期',
-    concept: 'AI 推动芯片需求',
-    visualRole: 'evidence',
-    keywords: ['TSMC', '半导体', '2030'],
-    assetQuery: ['TSMC global chip market 1.5 trillion AI Reuters'],
-    overlayTitle: '第五件事：AI 算力账单',
-    transitionOut: 'cut',
-    highlight: evidenceHighlight
-  },
-  {
-    id: 'tsmc-forecast-headline',
-    segmentId: 'news_5',
-    captionRange: [96, 97],
-    intent: '把 Reuters 和 MarketScreener 的报道转成醒目的预测卡。',
-    subject: 'TSMC 市场预测',
-    action: '给出长期展望',
-    concept: '预测类新闻需要保留条件',
-    visualRole: 'keyword',
-    keywords: ['预计', '长期展望'],
-    assetQuery: ['TSMC semiconductor market forecast Reuters MarketScreener'],
-    overlayTitle: '这是一条预测新闻',
-    transitionOut: 'cut'
-  },
-  {
-    id: 'tsmc-number',
-    segmentId: 'news_5',
-    captionRange: [97, 99],
-    intent: '突出 2030 年 1.5 万亿美元和 AI/HPC 动力。',
-    subject: '全球半导体市场',
-    action: '被 AI 和高性能计算推高',
-    concept: '算力需求变成产业预期',
-    visualRole: 'diagram',
-    keywords: ['1.5万亿美元', 'AI', 'HPC'],
-    assetQuery: ['semiconductor market forecast AI HPC chart'],
-    overlayTitle: '2030：1.5 万亿美元？',
-    transitionOut: 'cut'
-  },
-  {
-    id: 'tsmc-hpc-engine',
-    segmentId: 'news_5',
-    captionRange: [99, 100],
-    intent: '展示 AI 和高性能计算是芯片增长核心动力。',
-    subject: 'AI 和高性能计算',
-    action: '推动半导体需求',
-    concept: 'HPC 需求拉动芯片产业',
-    visualRole: 'product_ui',
-    keywords: ['AI', '高性能计算', '芯片需求'],
-    assetQuery: ['AI HPC semiconductor chips data center'],
-    overlayTitle: 'AI 和 HPC 是核心动力',
-    transitionOut: 'cut'
-  },
-  {
-    id: 'tsmc-user-bridge',
-    segmentId: 'news_5',
-    captionRange: [100, 104],
-    intent: '把远处的芯片新闻转成普通人能懂的算力账单。',
-    subject: 'AI 算力账单',
-    action: '需要产业链支撑',
-    concept: '软件体验背后的硬件成本',
-    visualRole: 'keyword',
-    keywords: ['算力账单', '谁来支撑'],
-    assetQuery: ['AI compute bill data center chips'],
-    overlayTitle: 'AI 背后有账单',
-    transitionOut: 'flash'
-  },
-  {
-    id: 'tsmc-supply-chain',
-    segmentId: 'news_5',
-    captionRange: [104, 109],
-    intent: '列出芯片、制程、数据中心和供应链投入。',
-    subject: 'AI 硬件供应链',
-    action: '承载模型和应用增长',
-    concept: 'AI 基础设施扩张',
-    visualRole: 'broll',
-    keywords: ['芯片', '制程', '数据中心'],
-    assetQuery: ['semiconductor fab data center AI chips'],
-    overlayTitle: '模型越强，硬件越重',
-    transitionOut: 'cut'
-  },
-  {
-    id: 'tsmc-long-term',
-    segmentId: 'news_5',
-    captionRange: [109, 111],
-    intent: '收束为 AI 改写硬件长期预期。',
-    subject: '硬件产业长期预期',
-    action: '被 AI 改写',
-    concept: 'AI 不只是软件故事',
-    visualRole: 'diagram',
-    keywords: ['不只是软件', '长期预期'],
-    assetQuery: ['AI hardware industry long term forecast'],
-    overlayTitle: 'AI 改写硬件预期',
-    transitionOut: 'cut'
-  },
-  {
-    id: 'anthropic-source',
-    segmentId: 'news_6',
-    captionRange: [111, 114],
-    intent: '进入 Anthropic 对华 AI 芯片控制议题。',
-    subject: 'Anthropic 政策呼吁',
-    action: '强调 AI 芯片控制',
-    concept: 'AI 竞争进入政策层',
-    visualRole: 'evidence',
-    keywords: ['Anthropic', '芯片控制', 'Axios'],
-    assetQuery: ['Axios Anthropic US China AI chip controls'],
-    overlayTitle: '第六件事：AI 进入政策层',
-    transitionOut: 'cut',
-    highlight: evidenceHighlight
-  },
-  {
-    id: 'anthropic-policy-points',
-    segmentId: 'news_6',
-    captionRange: [114, 116],
-    intent: '列出出口管制、知识产权和领先地位三点。',
-    subject: '政策材料',
-    action: '强调管制和风险',
-    concept: 'AI 领先地位和技术限制',
-    visualRole: 'diagram',
-    keywords: ['出口管制', '知识产权', '领先地位'],
-    assetQuery: ['AI export control intellectual property policy diagram'],
-    overlayTitle: '管制、风险、领先',
-    transitionOut: 'cut'
-  },
-  {
-    id: 'anthropic-combo-war',
-    segmentId: 'news_6',
-    captionRange: [116, 118],
-    intent: '说明 AI 竞争不再只是模型公司比赛。',
-    subject: 'AI 竞争结构',
-    action: '扩展成组合战',
-    concept: '芯片、数据中心、监管和地缘政治交织',
-    visualRole: 'broll',
-    keywords: ['芯片', '数据中心', '地缘政治'],
-    assetQuery: ['AI geopolitics chips data center regulation'],
-    overlayTitle: '不只是模型公司比赛',
-    transitionOut: 'cut'
-  },
-  {
-    id: 'anthropic-user-impact-headline',
-    segmentId: 'news_6',
-    captionRange: [118, 119],
-    intent: '转到普通用户影响。',
-    subject: '普通用户',
-    action: '受到政策间接影响',
-    concept: '政策影响产品可用性',
-    visualRole: 'keyword',
-    keywords: ['能不能上线', '价格会不会变'],
-    assetQuery: ['AI product availability price regulation'],
-    overlayTitle: '政策会影响你用不用得到',
-    transitionOut: 'flash'
-  },
-  {
-    id: 'anthropic-availability',
-    segmentId: 'news_6',
-    captionRange: [119, 123],
-    intent: '解释上线地区、价格和能力限制。',
-    subject: 'AI 产品可用性',
-    action: '被政策和供应链影响',
-    concept: '监管约束用户体验',
-    visualRole: 'broll',
-    keywords: ['上线地区', '价格', '能力限制'],
-    assetQuery: ['AI app availability regions pricing restrictions'],
-    overlayTitle: '影响会传到产品里',
-    transitionOut: 'cut'
-  },
-  {
-    id: 'tanstack-source',
-    segmentId: 'news_7',
-    captionRange: [123, 126],
-    intent: '进入 TanStack npm 供应链攻击。',
-    subject: 'TanStack npm 供应链攻击',
-    action: '被 OpenAI 新闻中心回应',
-    concept: '开发者生态安全',
-    visualRole: 'evidence',
-    keywords: ['TanStack', 'npm', '供应链'],
-    assetQuery: ['OpenAI TanStack npm supply chain attack newsroom'],
-    overlayTitle: '第七件事：供应链安全',
-    transitionOut: 'cut',
-    highlight: evidenceHighlight
-  },
-  {
-    id: 'tanstack-larger-issue',
-    segmentId: 'news_7',
-    captionRange: [126, 127],
-    intent: '把开发者新闻转成更大的安全问题。',
-    subject: '软件供应链安全',
-    action: '从小众议题变成系统风险',
-    concept: '自动化开发放大攻击影响',
-    visualRole: 'diagram',
-    keywords: ['自动化开发', '系统风险'],
-    assetQuery: ['software supply chain attack diagram AI tools'],
-    overlayTitle: '小组件，大风险',
-    transitionOut: 'cut'
-  },
-  {
-    id: 'tanstack-ai-tools',
-    segmentId: 'news_7',
-    captionRange: [127, 130],
-    intent: '说明 AI 工具、开源包、自动化流程越普及，影响越大。',
-    subject: 'AI 开发链路',
-    action: '放大供应链攻击影响',
-    concept: '开发自动化带来新安全面',
-    visualRole: 'product_ui',
-    keywords: ['AI工具', '开源包', '自动化流程'],
-    assetQuery: ['npm package AI coding tools supply chain'],
-    overlayTitle: '开发越自动，风险越放大',
-    transitionOut: 'cut'
-  },
-  {
-    id: 'tanstack-user-bridge',
-    segmentId: 'news_7',
-    captionRange: [130, 132],
-    intent: '解释普通用户虽然不接触 npm，但会受软件生态影响。',
-    subject: '普通用户和 npm',
-    action: '通过应用间接受影响',
-    concept: '不可见依赖',
-    visualRole: 'keyword',
-    keywords: ['你不用npm', '但App会用'],
-    assetQuery: ['app dependencies open source packages user impact'],
-    overlayTitle: '你不用，但 App 会用',
-    transitionOut: 'flash'
-  },
-  {
-    id: 'tanstack-dependency-chain',
-    segmentId: 'news_7',
-    captionRange: [132, 136],
-    intent: '收束为开源组件污染会传导到更多人。',
-    subject: '开源组件依赖链',
-    action: '传导安全影响',
-    concept: '软件生态连锁反应',
-    visualRole: 'broll',
-    keywords: ['网页服务', 'AI工具', '开源组件'],
-    assetQuery: ['open source dependency chain web app AI tools'],
-    overlayTitle: '开源组件影响很多人',
-    transitionOut: 'cut'
-  },
-  {
-    id: 'outro-mainline',
-    segmentId: 'outro',
-    captionRange: [136, 138],
-    intent: '总结本周主线：从模型最强到进入真实环境。',
-    subject: '本周科技主线',
-    action: '归纳为一个趋势',
-    concept: '模型能力到真实环境',
-    visualRole: 'diagram',
-    keywords: ['真实工作', '真实设备', '真实平台'],
-    assetQuery: ['AI real world deployment ecosystem diagram'],
-    overlayTitle: '主线：进入真实环境',
-    transitionOut: 'cut'
-  },
-  {
-    id: 'outro-real-environments',
-    segmentId: 'outro',
-    captionRange: [138, 139],
-    intent: '展示真实工作、设备、平台和监管环境。',
-    subject: '真实环境',
-    action: '承接 AI 模型能力',
-    concept: '真实环境决定落地难度',
-    visualRole: 'broll',
-    keywords: ['真实工作', '真实设备', '真实平台'],
-    assetQuery: ['AI real work devices platforms regulation'],
-    overlayTitle: '真实环境才是考场',
-    transitionOut: 'cut'
-  },
-  {
-    id: 'outro-six-fields',
-    segmentId: 'outro',
-    captionRange: [139, 140],
-    intent: '把六个分散议题合成同一件事。',
-    subject: '企业、手机、平台、芯片、政策、安全',
-    action: '汇聚成同一趋势',
-    concept: 'AI 基础设施化',
-    visualRole: 'diagram',
-    keywords: ['企业部署', '手机系统', '芯片供应链'],
-    assetQuery: ['AI ecosystem enterprise mobile chips policy security'],
-    overlayTitle: '分散新闻，同一趋势',
-    transitionOut: 'cut'
-  },
-  {
-    id: 'outro-six-fields-real',
-    segmentId: 'outro',
-    captionRange: [140, 141],
-    intent: '用现实产业素材承接六个领域的汇总。',
-    subject: 'AI 产业生态',
-    action: '连接分散领域',
-    concept: '生态协同',
-    visualRole: 'product_ui',
-    keywords: ['企业', '手机', '芯片', '安全'],
-    assetQuery: ['AI ecosystem enterprise mobile chip security'],
-    overlayTitle: 'AI 已经铺到多个领域',
-    transitionOut: 'cut'
-  },
-  {
-    id: 'outro-infrastructure',
-    segmentId: 'outro',
-    captionRange: [141, 142],
-    intent: '强调 AI 不再只是新功能。',
-    subject: 'AI',
-    action: '变成基础设施',
-    concept: 'AI 基础设施化',
-    visualRole: 'keyword',
-    keywords: ['不只是功能', '而是基础设施'],
-    assetQuery: ['AI infrastructure keyword card'],
-    overlayTitle: 'AI 正在变成基础设施',
-    transitionOut: 'flash'
-  },
-  {
-    id: 'outro-final',
-    segmentId: 'outro',
-    captionRange: [142, 145],
-    intent: '用复杂竞争阶段收尾。',
-    subject: 'AI 竞争',
-    action: '进入更复杂阶段',
-    concept: '产业、平台、规则和安全共同竞争',
-    visualRole: 'broll',
-    keywords: ['更复杂', '刚刚开始'],
-    assetQuery: ['AI competition infrastructure data center city'],
-    overlayTitle: '真正的竞争刚开始',
-    transitionOut: 'cut'
+export const slugify = (value) =>
+  String(value ?? 'item')
+    .normalize('NFKD')
+    .toLowerCase()
+    .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 64) || 'item';
+
+export const extractKeywords = (parts, limit = 12) => {
+  const text = asArray(parts)
+    .filter(Boolean)
+    .join(' ')
+    .replace(/https?:\/\/\S+/g, ' ');
+  const tokens = text.match(/[\p{Script=Han}]{2,}|[a-zA-Z][a-zA-Z0-9.+-]{2,}/gu) ?? [];
+  const seen = new Set();
+  const keywords = [];
+
+  for (const token of tokens) {
+    const normalized = token.toLowerCase();
+    if (stopWords.has(normalized) || seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    keywords.push(token);
+    if (keywords.length >= limit) {
+      break;
+    }
   }
-];
+
+  return keywords;
+};
+
+const keywordText = (keywords) => asArray(keywords).join('、') || '本期主线';
+
+const getKicker = (item) => {
+  const text = `${item.category ?? ''} ${item.title ?? ''} ${item.summary ?? ''}`;
+  const match = categoryKickers.find(([pattern]) => pattern.test(text));
+  return match?.[1] ?? compact(item.category ?? '科技变化', 8);
+};
+
+const getSummary = (item) =>
+  item.event_summary ??
+  item.video_angle ??
+  item.why_it_matters ??
+  item.summary ??
+  item.description ??
+  item.title ??
+  '这条新闻需要结合来源与当期口播解释。';
+
+const storyFromSelectionItem = (item, index) => {
+  const keywords = extractKeywords([
+    item.title,
+    item.category,
+    item.source_name,
+    item.video_angle,
+    item.event_summary,
+    item.why_it_matters
+  ]);
+  const title = item.title ?? `新闻 ${index + 1}`;
+
+  return {
+    id: slugify(`${index + 1}-${title}`),
+    segmentId: `news_${index + 1}`,
+    kicker: getKicker(item),
+    title: compact(title, 28),
+    body: compact(getSummary(item), 96),
+    ribbon: compact(item.video_angle ?? item.why_it_matters ?? item.category ?? '值得关注的科技变化', 30),
+    accent: accentPalette[index % accentPalette.length],
+    sourceName: item.source_name ?? item.publisher ?? null,
+    sourceUrl: item.source_url ?? item.url ?? null,
+    risk: item.risk_reminder ?? item.risk ?? item.fact_check_notes ?? null,
+    category: item.category ?? null,
+    keywords,
+    rawTitle: title
+  };
+};
+
+const makeBeat = ({id, segmentId, intent, subject, action, concept, visualRole, keywords, assetQuery, overlayTitle, transitionOut = 'cut'}) => ({
+  id,
+  segmentId,
+  captionRange: [0, 0],
+  intent,
+  subject,
+  action,
+  concept,
+  visualRole,
+  keywords,
+  assetQuery,
+  overlayTitle,
+  transitionOut
+});
+
+const buildStoryBeats = (story, index) => {
+  const keyText = keywordText(story.keywords.slice(0, 4));
+  const sourceQuery = [story.rawTitle, story.sourceName, story.sourceUrl, ...story.keywords].filter(Boolean).join(' ');
+
+  return [
+    makeBeat({
+      id: `${story.id}-evidence`,
+      segmentId: story.segmentId,
+      intent: `展示第 ${index + 1} 条新闻的当期来源，先让画面证明这条信息从哪里来。`,
+      subject: story.rawTitle,
+      action: '呈现来源与核心事实',
+      concept: story.body,
+      visualRole: 'evidence',
+      keywords: story.keywords,
+      assetQuery: [sourceQuery],
+      overlayTitle: `第 ${index + 1} 条：${story.title}`,
+      transitionOut: 'cut'
+    }),
+    makeBeat({
+      id: `${story.id}-explain`,
+      segmentId: story.segmentId,
+      intent: '把新闻里的机制、因果或变化路径解释清楚。',
+      subject: story.kicker,
+      action: '拆解原因和结构',
+      concept: story.body,
+      visualRole: 'diagram',
+      keywords: story.keywords,
+      assetQuery: [`${story.rawTitle} ${keyText} explainer diagram`],
+      overlayTitle: compact(story.ribbon, 24),
+      transitionOut: 'cut'
+    }),
+    makeBeat({
+      id: `${story.id}-real-world-context`,
+      segmentId: story.segmentId,
+      intent: '补充和这条新闻相关的真实场景，让画面从网页证据落到现实行业或使用现场。',
+      subject: story.rawTitle,
+      action: '连接真实场景',
+      concept: story.body,
+      visualRole: 'broll',
+      keywords: story.keywords,
+      assetQuery: [`${story.rawTitle} ${keyText} real world industry scene`],
+      overlayTitle: compact(`${story.kicker} 的现场`, 24),
+      transitionOut: 'cut'
+    }),
+    makeBeat({
+      id: `${story.id}-concept-visual`,
+      segmentId: story.segmentId,
+      intent: '用概念画面承接抽象机制，避免长时间只看网页或文字卡。',
+      subject: story.kicker,
+      action: '抽象表达',
+      concept: story.body,
+      visualRole: 'concept',
+      keywords: story.keywords,
+      assetQuery: [`${story.rawTitle} ${keyText} abstract technology concept`],
+      overlayTitle: compact(story.kicker, 24),
+      transitionOut: 'cut'
+    }),
+    makeBeat({
+      id: `${story.id}-takeaway`,
+      segmentId: story.segmentId,
+      intent: '用一句判断收束这一条新闻，让观众记住它和本期主线的关系。',
+      subject: story.rawTitle,
+      action: '提炼判断',
+      concept: story.ribbon,
+      visualRole: 'keyword',
+      keywords: story.keywords,
+      assetQuery: [`${story.rawTitle} ${keyText} takeaway`],
+      overlayTitle: compact(story.ribbon, 24),
+      transitionOut: 'flash'
+    }),
+    makeBeat({
+      id: `${story.id}-impact`,
+      segmentId: story.segmentId,
+      intent: '落到用户、行业或下一步影响，避免只停留在标题转述。',
+      subject: story.rawTitle,
+      action: '说明影响',
+      concept: story.risk ? `${story.body} 风险提示：${story.risk}` : story.body,
+      visualRole: /产品|手机|应用|平台|agent|ai/i.test(`${story.category ?? ''} ${story.rawTitle}`) ? 'product_ui' : 'broll',
+      keywords: story.keywords,
+      assetQuery: [`${story.rawTitle} ${keyText} impact product industry`],
+      overlayTitle: compact(`影响：${story.ribbon}`, 24),
+      transitionOut: 'cut'
+    }),
+    makeBeat({
+      id: `${story.id}-user-or-industry-scene`,
+      segmentId: story.segmentId,
+      intent: '把影响落到用户、开发者、企业或产业链的具体场景。',
+      subject: story.rawTitle,
+      action: '展示影响发生的位置',
+      concept: story.ribbon,
+      visualRole: 'broll',
+      keywords: story.keywords,
+      assetQuery: [`${story.rawTitle} ${keyText} user industry impact scene`],
+      overlayTitle: compact(`落点：${story.kicker}`, 24),
+      transitionOut: 'cut'
+    }),
+    makeBeat({
+      id: `${story.id}-transition-scene`,
+      segmentId: story.segmentId,
+      intent: '用相关现实素材完成段落转场，为下一条新闻留出视觉呼吸。',
+      subject: story.rawTitle,
+      action: '段落转场',
+      concept: story.ribbon,
+      visualRole: 'broll',
+      keywords: story.keywords,
+      assetQuery: [`${story.rawTitle} ${keyText} related technology b-roll`],
+      overlayTitle: compact(story.title, 24),
+      transitionOut: 'flash'
+    })
+  ];
+};
+
+const assignCaptionDrafts = (beats, storyCount) => {
+  const segmentOrder = ['intro', ...Array.from({length: storyCount}, (_, index) => `news_${index + 1}`), 'outro'];
+  const segmentCounts = new Map(segmentOrder.map((segment) => [segment, beats.filter((beat) => beat.segmentId === segment).length]));
+  let cursor = 0;
+  const boundaries = [];
+
+  for (const segment of segmentOrder) {
+    const count = segmentCounts.get(segment) ?? 0;
+    const width = Math.max(4, count * 4);
+    boundaries.push({segment, startCaption: cursor, endCaption: cursor + width});
+    cursor += width;
+  }
+
+  const positions = new Map();
+  return {
+    visualBeatPlan: beats.map((beat) => {
+      const boundary = boundaries.find((item) => item.segment === beat.segmentId);
+      const count = segmentCounts.get(beat.segmentId) ?? 1;
+      const position = positions.get(beat.segmentId) ?? 0;
+      positions.set(beat.segmentId, position + 1);
+      const start = boundary.startCaption + Math.floor(((boundary.endCaption - boundary.startCaption) * position) / count);
+      const end = boundary.startCaption + Math.floor(((boundary.endCaption - boundary.startCaption) * (position + 1)) / count);
+      return {...beat, captionRange: [start, Math.max(start + 1, end)]};
+    }),
+    segmentBoundaries: boundaries
+  };
+};
+
+export const buildVisualPlan = ({selection, voiceoverText = '', date = ''}) => {
+  const recommended = asArray(selection?.recommended).slice(0, 8);
+  const storyPlan = recommended.map(storyFromSelectionItem);
+  const voiceKeywords = extractKeywords([voiceoverText], 10);
+  const introKeywords = storyPlan.flatMap((story) => story.keywords.slice(0, 2)).slice(0, 8);
+  const introConcept = keywordText([...introKeywords, ...voiceKeywords].slice(0, 8));
+
+  const beats = [
+    makeBeat({
+      id: 'intro-thesis',
+      segmentId: 'intro',
+      intent: '建立本期新闻主线，先给观众一个判断框架。',
+      subject: `${date} 科技新闻`,
+      action: '提出主题',
+      concept: introConcept,
+      visualRole: 'keyword',
+      keywords: introKeywords,
+      assetQuery: [`${introConcept} tech news trend`],
+      overlayTitle: '本期科技主线',
+      transitionOut: 'cut'
+    }),
+    makeBeat({
+      id: 'intro-map',
+      segmentId: 'intro',
+      intent: '把多条新闻整理成可理解的结构，而不是堆标题。',
+      subject: '本期推荐新闻结构',
+      action: '串联议题',
+      concept: storyPlan.map((story) => story.kicker).join(' / '),
+      visualRole: 'diagram',
+      keywords: introKeywords,
+      assetQuery: [`${storyPlan.map((story) => story.rawTitle).join(' ')} overview map`],
+      overlayTitle: '先看结构',
+      transitionOut: 'cut'
+    }),
+    makeBeat({
+      id: 'intro-real-world',
+      segmentId: 'intro',
+      intent: '用真实科技产业场景建立本期不是纯文字资讯的视觉基调。',
+      subject: `${date} 科技产业现场`,
+      action: '建立现实感',
+      concept: introConcept,
+      visualRole: 'broll',
+      keywords: introKeywords,
+      assetQuery: [`${introConcept} real technology industry b-roll`],
+      overlayTitle: '回到真实世界',
+      transitionOut: 'cut'
+    }),
+    makeBeat({
+      id: 'intro-concept',
+      segmentId: 'intro',
+      intent: '用趋势画面承接本期多条新闻之间的共同技术主线。',
+      subject: `${date} 科技变化`,
+      action: '抽象连接',
+      concept: introConcept,
+      visualRole: 'concept',
+      keywords: introKeywords,
+      assetQuery: [`${introConcept} abstract technology visual`],
+      overlayTitle: '技术主线',
+      transitionOut: 'cut'
+    }),
+    ...storyPlan.flatMap(buildStoryBeats),
+    makeBeat({
+      id: 'outro-mainline',
+      segmentId: 'outro',
+      intent: '把本期分散新闻收束成一条主线。',
+      subject: '本期科技新闻',
+      action: '总结共同趋势',
+      concept: introConcept,
+      visualRole: 'diagram',
+      keywords: introKeywords,
+      assetQuery: [`${introConcept} technology trend summary`],
+      overlayTitle: '这几条新闻连在一起看',
+      transitionOut: 'cut'
+    }),
+    makeBeat({
+      id: 'outro-impact',
+      segmentId: 'outro',
+      intent: '提醒观众接下来继续关注真实产品、产业和规则变化。',
+      subject: '后续观察',
+      action: '提示影响',
+      concept: '真正重要的是这些变化怎样进入产品、产业和日常使用。',
+      visualRole: 'keyword',
+      keywords: ['产品', '产业', '规则', ...introKeywords.slice(0, 3)],
+      assetQuery: [`${introConcept} product industry regulation impact`],
+      overlayTitle: '下一步看落地',
+      transitionOut: 'cut'
+    }),
+    makeBeat({
+      id: 'outro-real-world',
+      segmentId: 'outro',
+      intent: '用真实产业场景收束，强调这些新闻最终会进入产品、产业和生活。',
+      subject: '科技产业落地',
+      action: '现实收束',
+      concept: introConcept,
+      visualRole: 'broll',
+      keywords: introKeywords,
+      assetQuery: [`${introConcept} technology industry real world closing`],
+      overlayTitle: '落地才是重点',
+      transitionOut: 'cut'
+    }),
+    makeBeat({
+      id: 'outro-concept',
+      segmentId: 'outro',
+      intent: '用概念画面完成最后的趋势收束。',
+      subject: '本期趋势',
+      action: '趋势收束',
+      concept: introConcept,
+      visualRole: 'concept',
+      keywords: introKeywords,
+      assetQuery: [`${introConcept} technology trend concept`],
+      overlayTitle: '继续观察',
+      transitionOut: 'cut'
+    })
+  ];
+
+  const withTiming = assignCaptionDrafts(beats, storyPlan.length);
+  return {
+    date,
+    storyPlan,
+    segmentBoundaries: withTiming.segmentBoundaries,
+    visualBeatPlan: withTiming.visualBeatPlan
+  };
+};
+
+export const loadVisualPlanInputs = async ({root, date}) => {
+  const selectionPath = path.join(root, 'data', 'selected', `${date}-selection.json`);
+  const voiceoverPath = path.join(root, 'data', 'video-scripts', `${date}-voiceover.md`);
+  const selection = JSON.parse(await fs.readFile(selectionPath, 'utf8'));
+  let voiceoverText = '';
+  try {
+    voiceoverText = await fs.readFile(voiceoverPath, 'utf8');
+  } catch {
+    voiceoverText = '';
+  }
+  return {selection, voiceoverText};
+};
+
+const sourceText = (source) => `${source?.name ?? ''} ${source?.title ?? ''} ${source?.url ?? ''}`.toLowerCase();
+const domainOf = (url) => {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return null;
+  }
+};
+
+export const chooseBestSource = (sources, beat, options = {}) => {
+  const usedUrls = options.usedUrls ?? new Map();
+  const usedDomains = options.usedDomains ?? new Map();
+  const maxUrlUses = options.maxUrlUses ?? 2;
+  const maxDomainUses = options.maxDomainUses ?? 8;
+  const keywords = extractKeywords([
+    beat.subject,
+    beat.action,
+    beat.concept,
+    beat.overlayTitle,
+    ...(beat.keywords ?? []),
+    ...(beat.assetQuery ?? [])
+  ], 16);
+  const pool = asArray(sources).filter((source) => {
+    if (!source?.url) {
+      return false;
+    }
+    const urlCount = usedUrls.get(source.url) ?? 0;
+    const domain = domainOf(source.url);
+    const domainCount = domain ? usedDomains.get(domain) ?? 0 : 0;
+    return urlCount < maxUrlUses && domainCount < maxDomainUses;
+  });
+  const scored = pool.map((source) => {
+    const text = sourceText(source);
+    const matchedKeywords = keywords.map((keyword) => keyword.toLowerCase()).filter((keyword) => text.includes(keyword));
+    const urlCount = usedUrls.get(source.url) ?? 0;
+    const domain = domainOf(source.url);
+    const domainCount = domain ? usedDomains.get(domain) ?? 0 : 0;
+    const directUrlBoost = beat.visualRole === 'evidence' && beat.assetQuery?.some((query) => String(query).includes(source.url)) ? 8 : 0;
+    const score = matchedKeywords.length * 3 + directUrlBoost - urlCount * 5 - domainCount * 2;
+
+    return {source, score, matchedKeywords, domain, urlCount, domainCount};
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+  const winner = scored.find((item) => item.score > 0);
+
+  if (!winner) {
+    return {
+      source: null,
+      matchedKeywords: [],
+      matchReason: 'fallback: no semantically matched source',
+      fallback: true
+    };
+  }
+
+  return {
+    source: winner.source,
+    matchedKeywords: winner.matchedKeywords,
+    matchReason: `${winner.matchedKeywords.length ? `semantic match: ${winner.matchedKeywords.join(', ')}` : 'semantic match: direct source URL'}; domain uses ${winner.domainCount}`,
+    fallback: false
+  };
+};
+
+export const validateSourceUsage = (assets, {maxUrlUses = 2, maxDomainUses = 8} = {}) => {
+  const urlCounts = new Map();
+  const domainCounts = new Map();
+  const problems = [];
+
+  for (const asset of asArray(assets)) {
+    if (!asset.source_url) {
+      continue;
+    }
+    urlCounts.set(asset.source_url, (urlCounts.get(asset.source_url) ?? 0) + 1);
+    const domain = domainOf(asset.source_url);
+    if (domain) {
+      domainCounts.set(domain, (domainCounts.get(domain) ?? 0) + 1);
+    }
+  }
+
+  for (const [url, count] of urlCounts) {
+    if (count > maxUrlUses) {
+      problems.push(`source URL ${url} is used ${count} times, above maximum ${maxUrlUses}`);
+    }
+  }
+
+  for (const [domain, count] of domainCounts) {
+    if (count > maxDomainUses) {
+      problems.push(`source domain reused ${count} times: ${domain}`);
+    }
+  }
+
+  return problems;
+};
+
+export const storyPlan = [];
+export const segmentBoundaries = [];
+export const visualBeatPlan = [];

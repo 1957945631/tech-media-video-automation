@@ -23,7 +23,7 @@ export const visualLabel = (beat: ActiveBeat) => {
     case 'product_ui':
       return '产品界面';
     case 'company_person':
-      return '公司 / 人物';
+      return '公司人物';
     case 'industry_broll':
       return '产业现场';
     case 'commercial_broll':
@@ -31,11 +31,11 @@ export const visualLabel = (beat: ActiveBeat) => {
     case 'real_broll':
       return '真实素材';
     case 'abstract_tech':
-      return '科技概念';
+      return '趋势画面';
     case 'remotion_diagram':
-      return '逻辑图解';
+      return '结构拆解';
     case 'yellow_opinion_card':
-      return '观点卡';
+      return '关键判断';
     default:
       return '科技素材';
   }

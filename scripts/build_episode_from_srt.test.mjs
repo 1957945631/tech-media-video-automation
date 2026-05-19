@@ -15,5 +15,11 @@ test('episode builder keeps internal risk metadata out of audience data', () => 
 });
 
 test('episode builder includes assetFunction on every visual beat', () => {
-  assert.match(source, /assetFunction: assignAssetFunction\(beat\)/);
+  assert.match(source, /const assignedAssetFunction = assignAssetFunction\(beat\)/);
+  assert.match(source, /assetFunction,/);
+});
+
+test('episode builder keeps abstract technology assets out of audience episode data', () => {
+  assert.match(source, /assignedAssetFunction === 'abstract_tech' \? 'yellow_opinion_card'/);
+  assert.match(source, /!asset\.includes\('abstract_tech'\)/);
 });

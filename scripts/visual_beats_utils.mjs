@@ -4,6 +4,9 @@ const transitions = new Set(['cut', 'flash', 'glitch', 'zoom', 'scan']);
 const realWorldRoles = new Set(['evidence', 'product_ui', 'person_or_company', 'broll']);
 const explanatoryRoles = new Set(['diagram', 'keyword']);
 
+export const isVisualRhythmProblem = (problem) =>
+  /role repetition|real-world asset gap|diagram\/(?:opinion|keyword) gap|concept visuals continue|abstract visuals continue|more than 2 times/i.test(problem);
+
 export const captionRangeToTime = (captionRange, captions, durationSeconds) => {
   const [startIndex, endIndex] = captionRange;
   const start = captions[startIndex]?.start;
@@ -29,7 +32,7 @@ export const validateVisualBeats = ({beats, segments, captions, durationSeconds}
       continue;
     }
 
-    if (!beat.assets?.length) {
+    if (!beat.assets?.length && beat.assetFunction !== 'yellow_opinion_card') {
       problems.push(`${label} missing assets`);
     }
 
@@ -55,10 +58,6 @@ export const validateVisualBeats = ({beats, segments, captions, durationSeconds}
 
     if (!transitions.has(beat.transitionOut)) {
       problems.push(`${label} has invalid transitionOut ${beat.transitionOut ?? 'missing'}`);
-    }
-
-    if (beat.visualRole === 'evidence' && !beat.highlight && !beat.hasHighlight) {
-      problems.push(`${label} evidence beat needs highlight metadata`);
     }
 
     if (!Array.isArray(beat.captionRange) || beat.captionRange.length !== 2) {

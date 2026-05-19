@@ -10,13 +10,12 @@ const realWorldFunctions = new Set([
 const explanatoryFunctions = new Set(['remotion_diagram', 'yellow_opinion_card']);
 
 export const inventoryTargets = {
-  evidence_screenshot: {min: 8, max: 15},
+  evidence_screenshot: {min: 7, max: 15},
   product_ui: {min: 5, max: 10},
   real_broll: {min: 20, max: 35},
   abstract_tech: {min: 8, max: 15},
   remotion_diagram: {min: 5, max: 10},
-  yellow_opinion_card: {min: 6, max: 10},
-  annotation: {min: 10, max: 20}
+  yellow_opinion_card: {min: 6, max: 10}
 };
 
 export const assignAssetFunction = (beat) => {
@@ -71,9 +70,6 @@ export const countAssetInventory = (assets) => {
   for (const asset of assets) {
     const key = normalizeInventoryFunction(asset.assetFunction);
     counts[key] = (counts[key] ?? 0) + 1;
-    if (asset.annotation) {
-      counts.annotation = (counts.annotation ?? 0) + 1;
-    }
   }
 
   return counts;

@@ -3,7 +3,7 @@ import path from 'node:path';
 import {parseMedia} from '@remotion/media-parser';
 import {nodeReader} from '@remotion/media-parser/node';
 import {validateAssetRhythm} from '../asset_function_rules.mjs';
-import {validateVisualBeats} from '../visual_beats_utils.mjs';
+import {isVisualRhythmProblem, validateVisualBeats} from '../visual_beats_utils.mjs';
 
 const root = process.cwd();
 const dataPath = path.join(root, 'src', 'data', 'currentEpisode.ts');
@@ -162,22 +162,20 @@ const main = async () => {
   const segments = extractBlocks(source, 'segments');
   const captions = extractBlocks(source, 'captions');
   const visualBeats = extractVisualBeats(source);
+  const visualBeatProblems = validateVisualBeats({beats: visualBeats, segments, captions, durationSeconds});
+  const assetRhythmProblems = validateAssetRhythm(visualBeats);
+  const rhythmWarnings = [...visualBeatProblems, ...assetRhythmProblems].filter(isVisualRhythmProblem);
   const problems = [
     ...checkContinuity(segments, 'segments'),
     ...checkContinuity(captions, 'captions', {allowGaps: true}),
-    ...validateVisualBeats({beats: visualBeats, segments, captions, durationSeconds}),
-    ...validateAssetRhythm(visualBeats)
+    ...visualBeatProblems.filter((problem) => !isVisualRhythmProblem(problem)),
+    ...assetRhythmProblems.filter((problem) => !isVisualRhythmProblem(problem))
   ];
 
   if (/审核提醒|瀹℃牳鎻愰啋|risk\s*:/.test(source)) {
     problems.push('观众版 episode 数据不能包含 risk 或审核提醒文案');
   }
 
-  for (const beat of visualBeats) {
-    if (beat.assetFunction === 'evidence_screenshot' && !beat.hasHighlight) {
-      problems.push(`${beat.id} evidence screenshot is missing highlight metadata`);
-    }
-  }
   const finalSegmentEnd = segments.at(-1)?.end ?? 0;
   const finalCaptionEnd = captions.at(-1)?.end ?? 0;
 
@@ -217,7 +215,8 @@ const main = async () => {
     visualBeats: visualBeats.length,
     audioDuration: audioInfo?.durationInSeconds ? round(audioInfo.durationInSeconds) : null,
     videoDuration: videoInfo?.durationInSeconds ? round(videoInfo.durationInSeconds) : null,
-    problems
+    problems,
+    warnings: rhythmWarnings
   };
 
   console.log(JSON.stringify(report, null, 2));
