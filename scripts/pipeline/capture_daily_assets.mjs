@@ -5,6 +5,7 @@ import {chromium} from 'playwright';
 import {buildVisualPlan, chooseBestSource, validateSourceUsage} from '../visual_beat_plan.mjs';
 import {mergeResearchSourcesIntoPools, normalizeResearchSources} from '../asset_research_sources.mjs';
 import {assignAssetFunction, countAssetInventory, normalizeInventoryFunction, validateAssetInventory} from '../asset_function_rules.mjs';
+import {cleanAudienceKeywords, pickAudienceBody, pickAudienceTitle} from '../audience_copy.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..', '..');
@@ -73,7 +74,7 @@ const readText = async (file, fallback = '') => {
 const cleanGeneratedAssetDir = async (dir) => {
   await fs.mkdir(dir, {recursive: true});
   const entries = await fs.readdir(dir, {withFileTypes: true});
-  const generatedExtensions = new Set(['.png', '.jpg', '.jpeg', '.webp']);
+  const generatedExtensions = new Set(['.png', '.jpg', '.jpeg', '.webp', '.mp4', '.webm', '.mov', '.m4v']);
   const generatedFiles = new Set(['assets-manifest.json', 'visual-beats.json']);
 
   for (const entry of entries) {
@@ -297,6 +298,48 @@ const captureUrlPng = async ({context, source, publicPath, dataPath}) => {
   }
 };
 
+const copyLocalMediaAsset = async ({source, publicPath, dataPath}) => {
+  if (!source?.localPath) {
+    return {ok: false, error: 'missing local media path', source_url: source?.url ?? null};
+  }
+  const absoluteSource = path.isAbsolute(source.localPath) ? source.localPath : path.join(root, source.localPath);
+  try {
+    await fs.copyFile(absoluteSource, publicPath);
+    await fs.copyFile(absoluteSource, dataPath);
+    return {ok: true, source_url: source.url, mediaType: source.mediaType};
+  } catch (error) {
+    return {ok: false, error: error instanceof Error ? error.message : String(error), source_url: source.url};
+  }
+};
+
+const mediaExtensionFor = (source) => {
+  const candidate = source?.localPath ?? source?.url ?? '';
+  const extension = path.extname(new URL(candidate, 'https://asset.local').pathname).toLowerCase();
+  if (extension) {
+    return extension;
+  }
+  return source?.mediaType === 'video' ? '.mp4' : '.png';
+};
+
+const downloadRemoteMediaAsset = async ({source, publicPath, dataPath}) => {
+  if (!source?.url || !['image', 'video'].includes(source.mediaType)) {
+    return {ok: false, error: 'not a direct remote media asset', source_url: source?.url ?? null};
+  }
+
+  try {
+    const response = await fetch(source.url);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const buffer = Buffer.from(await response.arrayBuffer());
+    await fs.writeFile(publicPath, buffer);
+    await fs.copyFile(publicPath, dataPath);
+    return {ok: true, source_url: source.url, mediaType: source.mediaType};
+  } catch (error) {
+    return {ok: false, error: error instanceof Error ? error.message : String(error), source_url: source.url};
+  }
+};
+
 
 const chooseSource = (pools, assetFunction, beat, usage) => {
   const pool = pools[assetFunction] ?? pools[normalizeInventoryFunction(assetFunction)] ?? [];
@@ -308,12 +351,16 @@ const chooseSource = (pools, assetFunction, beat, usage) => {
 };
 
 const fallbackHtml = (assetFunction, beat, source) => {
+  const title = pickAudienceTitle({beat});
+  const body = pickAudienceBody({beat});
+  const chips = cleanAudienceKeywords(beat.keywords ?? [], assetFunction === 'remotion_diagram' ? 4 : 6);
+
   if (assetFunction === 'yellow_opinion_card') {
     return cardShell({
-      kicker: '关键判断',
-      title: beat.overlayTitle,
-      body: beat.intent,
-      chips: beat.keywords ?? [],
+      kicker: '\u5173\u952e\u5224\u65ad',
+      title,
+      body,
+      chips,
       source,
       tone: 'yellow'
     });
@@ -321,10 +368,10 @@ const fallbackHtml = (assetFunction, beat, source) => {
 
   if (assetFunction === 'remotion_diagram') {
     return cardShell({
-      kicker: '结构拆解',
-      title: beat.overlayTitle,
-      body: beat.concept,
-      chips: beat.keywords ?? [],
+      kicker: '\u7ed3\u6784\u62c6\u89e3',
+      title,
+      body,
+      chips,
       source,
       diagram: true
     });
@@ -332,34 +379,61 @@ const fallbackHtml = (assetFunction, beat, source) => {
 
   if (assetFunction === 'abstract_tech') {
     return cardShell({
-      kicker: '趋势画面',
-      title: beat.overlayTitle,
-      body: beat.intent,
-      chips: beat.keywords ?? [],
+      kicker: '\u8d8b\u52bf\u753b\u9762',
+      title,
+      body,
+      chips,
       source: ''
     });
   }
 
   return cardShell({
-    kicker: '背景补充',
-    title: beat.overlayTitle,
-    body: beat.intent,
-    chips: beat.keywords ?? [],
+    kicker: '\u80cc\u666f\u8865\u5145',
+    title,
+    body,
+    chips,
     source
   });
 };
 
 const createAsset = async ({context, pools, usage, beat, assetFunction, index, forcedSource = null}) => {
-  const key = `${String(index + 1).padStart(3, '0')}-${slugify(beat.id)}-${assetFunction}`;
-  const publicPath = path.join(publicAssetDir, `${key}.png`);
-  const dataPath = path.join(dataAssetDir, `${key}.png`);
+  if (assetFunction === 'remotion_motion_clip') {
+    const key = `${String(index + 1).padStart(3, '0')}-${slugify(beat.id)}-${assetFunction}`;
+    return {
+      id: key,
+      beatId: beat.id,
+      assetFunction,
+      visualRole: beat.visualRole,
+      path: null,
+      source_url: null,
+      source_name: 'Remotion component',
+      mediaType: 'remotion_component',
+      isRealWorldMaterial: false,
+      annotation: false,
+      hasHighlight: false,
+      matchReason: 'component-rendered semantic motion clip',
+      matchedKeywords: cleanAudienceKeywords(beat.keywords ?? [], 4),
+      sourceCategory: 'remotion-motion',
+      status: 'component-rendered'
+    };
+  }
+
   const sourceChoice = forcedSource ? {source: forcedSource, matchedKeywords: [], matchReason: 'forced source', fallback: false} : chooseSource(pools, assetFunction, beat, usage);
   const source = sourceChoice.source;
+  const directMediaExtension = ['image', 'video'].includes(source?.mediaType) ? mediaExtensionFor(source) : '.png';
+  const key = `${String(index + 1).padStart(3, '0')}-${slugify(beat.id)}-${assetFunction}`;
+  const publicPath = path.join(publicAssetDir, `${key}${directMediaExtension}`);
+  const dataPath = path.join(dataAssetDir, `${key}${directMediaExtension}`);
   const annotation = false;
-  const canCapture = source?.url && !sourceChoice.fallback && !['abstract_tech', 'remotion_diagram', 'yellow_opinion_card'].includes(assetFunction);
+  const canUseLocalMedia = source?.localPath && ['image', 'video'].includes(source.mediaType);
+  const canCapture = source?.url && !sourceChoice.fallback && source.mediaType !== 'video' && !['abstract_tech', 'remotion_diagram', 'yellow_opinion_card'].includes(assetFunction);
   let capture = null;
 
-  if (canCapture) {
+  if (canUseLocalMedia) {
+    capture = await copyLocalMediaAsset({source, publicPath, dataPath});
+  } else if (!sourceChoice.fallback && ['image', 'video'].includes(source?.mediaType)) {
+    capture = await downloadRemoteMediaAsset({source, publicPath, dataPath});
+  } else if (canCapture) {
     capture = await captureUrlPng({
       context,
       source,
@@ -385,6 +459,7 @@ const createAsset = async ({context, pools, usage, beat, assetFunction, index, f
     path: `assets/${date}/${path.basename(publicPath)}`,
     source_url: source?.url ?? null,
     source_name: source?.name ?? null,
+    mediaType: capture?.mediaType ?? source?.mediaType ?? (capture?.ok ? 'webpage' : 'generated_card'),
     isRealWorldMaterial: Boolean(capture?.ok),
     annotation,
     hasHighlight: false,
@@ -436,7 +511,7 @@ const main = async () => {
     visualBeats.push({
       ...beat,
       assetFunction: primaryFunction,
-      assets: assets.map((asset) => asset.path)
+      assets: assets.map((asset) => asset.path).filter(Boolean)
     });
   }
 

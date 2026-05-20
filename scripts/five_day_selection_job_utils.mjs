@@ -73,7 +73,7 @@ const videoAngle = (item) => {
   if (category === '互联网公司') {
     return '用平台规则变化解释用户、开发者和生态的连锁影响。';
   }
-  return '用一个具体使用场景切入，再解释它为什么代表本周科技趋势。';
+  return '从这条新闻的真实变化出发，讲清它会影响哪些产品、产业或普通用户。';
 };
 
 const publicImpact = (item) => {

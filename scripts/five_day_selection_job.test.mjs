@@ -111,3 +111,22 @@ test('renderSelectionMarkdown includes candidate and recommended sections', () =
   assert.match(markdown, /候选池/);
   assert.match(markdown, /logs\/five-day-selection-job\.jsonl/);
 });
+
+test('buildSelection does not emit internal production prompt as video angle', () => {
+  const selection = buildSelection({
+    targetDate: '2026-05-20',
+    items: [
+      {
+        title: 'Infrastructure software update',
+        category: 'Other',
+        summary: 'A platform changed how developers deploy software.',
+        source_name: 'Example',
+        source_url: 'https://example.com/infra',
+        initial_score: 8,
+        archive_date: '2026-05-20'
+      }
+    ]
+  });
+
+  assert.doesNotMatch(selection.recommended[0].video_angle, /用一个具体使用场景切入|再解释它为什么代表本周科技趋势/);
+});

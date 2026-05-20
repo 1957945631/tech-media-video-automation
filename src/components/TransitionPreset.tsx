@@ -1,16 +1,41 @@
 import React from 'react';
 import {AbsoluteFill, Easing, interpolate} from 'remotion';
-import type {TransitionName} from '../types/video';
+import type {AssetFunction, TransitionName, VisualRole} from '../types/video';
 
 type Props = {
   name?: TransitionName;
   progress: number;
+  visualRole?: VisualRole;
+  assetFunction?: AssetFunction;
 };
 
 const ease = Easing.bezier(0.22, 1, 0.36, 1);
 
-export const TransitionPreset: React.FC<Props> = ({name = 'cut', progress}) => {
-  if (name === 'cut') {
+const resolveTransition = ({name, visualRole, assetFunction}: Omit<Props, 'progress'>) => {
+  if (name && name !== 'cut') {
+    return name;
+  }
+  if (assetFunction === 'evidence_screenshot') {
+    return 'scan';
+  }
+  if (assetFunction === 'product_ui') {
+    return 'zoom';
+  }
+  if (visualRole === 'motion' || assetFunction === 'remotion_motion_clip') {
+    return 'glitch';
+  }
+  if (visualRole === 'diagram' || assetFunction === 'remotion_diagram') {
+    return 'scan';
+  }
+  if (visualRole === 'keyword' || assetFunction === 'yellow_opinion_card') {
+    return 'flash';
+  }
+  return 'cut';
+};
+
+export const TransitionPreset: React.FC<Props> = ({name = 'cut', progress, visualRole, assetFunction}) => {
+  const resolvedName = resolveTransition({name, visualRole, assetFunction});
+  if (resolvedName === 'cut') {
     return null;
   }
 
@@ -20,7 +45,7 @@ export const TransitionPreset: React.FC<Props> = ({name = 'cut', progress}) => {
     easing: ease
   });
 
-  if (name === 'glitch') {
+  if (resolvedName === 'glitch') {
     return (
       <AbsoluteFill style={{pointerEvents: 'none', opacity}}>
         <div style={{position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.16)', mixBlendMode: 'screen'}} />
@@ -30,7 +55,7 @@ export const TransitionPreset: React.FC<Props> = ({name = 'cut', progress}) => {
     );
   }
 
-  if (name === 'zoom') {
+  if (resolvedName === 'zoom') {
     return (
       <AbsoluteFill
         style={{
@@ -43,7 +68,7 @@ export const TransitionPreset: React.FC<Props> = ({name = 'cut', progress}) => {
     );
   }
 
-  if (name === 'scan') {
+  if (resolvedName === 'scan') {
     const y = interpolate(progress, [0, 0.14], [-120, 1920], {extrapolateRight: 'clamp', easing: ease});
     return (
       <AbsoluteFill style={{pointerEvents: 'none', opacity}}>

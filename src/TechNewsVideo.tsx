@@ -153,7 +153,7 @@ export const TechNewsVideo: React.FC<Props> = ({data}) => {
       <VisualStage segment={segment} beat={beat} second={second} />
       <BottomTitle durationText={durationLabel(data)} />
       <CaptionBar text={caption?.text ?? null} />
-      <TransitionPreset name={beat?.transitionOut ?? 'cut'} progress={progress} />
+      <TransitionPreset name={beat?.transitionOut ?? 'cut'} progress={progress} visualRole={beat?.visualRole} assetFunction={beat?.assetFunction} />
     </AbsoluteFill>
   );
 };

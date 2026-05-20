@@ -20,66 +20,205 @@
     "rule": "AI 可以是重点，但不能默认成为整期唯一主线。选题、脚本和素材必须体现科技产业的多样性。"
   },
   "component_library": {
-    "EvidenceCard": "新闻、官网、推文、财报、公告截图；必须使用安全标注，优先高亮标题、来源或关键段落区域，禁止固定箭头指向未知位置。",
+    "EvidenceCard": "新闻、官网、推文、财报、公告截图；默认保持干净可读，只在 beat 明确携带语义安全高亮时弱化强调，禁止固定红框和固定箭头。",
     "BrollCard": "真实视频素材优先，缺视频时使用真实照片或网页截图做推拉、扫描、裁切运动。",
     "ConceptCard": "AI 网络、未来城市、数字大脑、芯片结构等抽象科技画面；不能连续超过 12 秒。",
     "DiagramCard": "由 Remotion 生成商业逻辑、技术逻辑、产业链、时间线、因果关系图解。",
     "KeywordPunch": "黄色大字观点卡，用于结论、反转、判断和段落落点。",
-    "HighlightEngine": "统一生成安全红框、宽区域强调、放大镜和说明标签；不使用固定坐标箭头。",
+    "HighlightEngine": "只响应显式语义高亮请求，生成低干扰宽区域强调或放大镜；默认关闭，禁止固定红框和固定坐标箭头。",
     "TransitionPreset": "白闪、glitch、推近、扫描线和硬切，根据 beat 语义灵活选择。"
   },
   "visual_roles": {
     "evidence": {
       "label": "证据截图",
-      "use_for": ["新闻事实", "公告", "财报", "监管文件", "媒体原文"],
-      "asset_priority": ["official_page", "trusted_media", "document", "annotated_screenshot"],
-      "required_treatment": ["safe_focus_area", "source_label", "readable_body", "no_fixed_directional_arrow"]
+      "use_for": [
+        "新闻事实",
+        "公告",
+        "财报",
+        "监管文件",
+        "媒体原文"
+      ],
+      "asset_priority": [
+        "official_page",
+        "trusted_media",
+        "document"
+      ],
+      "required_treatment": [
+        "clean_source_view",
+        "source_label",
+        "readable_body",
+        "explicit_safe_focus_only",
+        "no_fixed_directional_arrow"
+      ]
     },
     "product_ui": {
       "label": "产品 UI",
-      "use_for": ["产品功能", "App", "网页界面", "开发者工具"],
-      "asset_priority": ["official_product_page", "app_store", "product_screenshot", "demo_video"],
-      "required_treatment": ["clean_crop", "source_label", "subtle_zoom"]
+      "use_for": [
+        "产品功能",
+        "App",
+        "网页界面",
+        "开发者工具"
+      ],
+      "asset_priority": [
+        "official_product_page",
+        "app_store",
+        "product_screenshot",
+        "demo_video"
+      ],
+      "required_treatment": [
+        "clean_crop",
+        "source_label",
+        "subtle_zoom"
+      ]
     },
     "person_or_company": {
       "label": "人物 / 公司",
-      "use_for": ["公司主体", "创始人", "品牌", "机构"],
-      "asset_priority": ["official_photo", "press_page", "logo_as_secondary_element"],
-      "required_treatment": ["avoid_logo_fullscreen_over_3s", "context_caption"]
+      "use_for": [
+        "公司主体",
+        "创始人",
+        "品牌",
+        "机构"
+      ],
+      "asset_priority": [
+        "official_photo",
+        "press_page",
+        "logo_as_secondary_element"
+      ],
+      "required_treatment": [
+        "avoid_logo_fullscreen_over_3s",
+        "context_caption"
+      ]
     },
     "broll": {
       "label": "真实场景 b-roll",
-      "use_for": ["产业现实", "工厂", "数据中心", "会议", "城市", "消费场景"],
-      "asset_priority": ["real_footage", "official_video", "news_video_still", "real_photo"],
-      "required_treatment": ["slow_push", "vignette", "low_saturation"]
+      "use_for": [
+        "产业现实",
+        "工厂",
+        "数据中心",
+        "会议",
+        "城市",
+        "消费场景"
+      ],
+      "asset_priority": [
+        "real_footage",
+        "official_video",
+        "news_video_still",
+        "real_photo"
+      ],
+      "required_treatment": [
+        "slow_push",
+        "vignette",
+        "low_saturation"
+      ]
     },
     "concept": {
       "label": "抽象科技画面",
-      "use_for": ["趋势", "情绪", "未来感", "抽象概念"],
-      "asset_priority": ["generated_visual", "abstract_motion", "style_card"],
-      "required_treatment": ["scanline", "noise", "not_consecutive_over_12s"]
+      "use_for": [
+        "趋势",
+        "情绪",
+        "未来感",
+        "抽象概念"
+      ],
+      "asset_priority": [
+        "remotion_motion_clip",
+        "generated_visual",
+        "abstract_motion",
+        "style_card"
+      ],
+      "required_treatment": [
+        "scanline",
+        "noise",
+        "not_consecutive_over_12s"
+      ]
     },
     "diagram": {
       "label": "图解动画",
-      "use_for": ["商业模式", "技术路径", "成本结构", "因果关系", "产业链"],
-      "asset_priority": ["remotion_diagram", "structured_nodes", "source_backed_numbers"],
-      "required_treatment": ["clear_nodes", "limited_text", "animated_links"]
+      "use_for": [
+        "商业模式",
+        "技术路径",
+        "成本结构",
+        "因果关系",
+        "产业链"
+      ],
+      "asset_priority": [
+        "remotion_diagram",
+        "structured_nodes",
+        "source_backed_numbers"
+      ],
+      "required_treatment": [
+        "clear_nodes",
+        "limited_text",
+        "animated_links"
+      ]
     },
     "keyword": {
       "label": "关键词观点卡",
-      "use_for": ["观点反转", "段落总结", "核心判断", "结论落点"],
-      "asset_priority": ["remotion_card"],
-      "required_treatment": ["8_to_16_chars", "judgment_sentence", "yellow_punch"]
+      "use_for": [
+        "观点反转",
+        "段落总结",
+        "核心判断",
+        "结论落点"
+      ],
+      "asset_priority": [
+        "remotion_card"
+      ],
+      "required_treatment": [
+        "8_to_16_chars",
+        "judgment_sentence",
+        "yellow_punch"
+      ]
+    },
+    "motion": {
+      "label": "Remotion semantic motion",
+      "use_for": [
+        "mechanism",
+        "workflow",
+        "dependency relationship",
+        "risk spread",
+        "system behavior"
+      ],
+      "asset_priority": [
+        "remotion_motion_clip",
+        "source_backed_terms",
+        "structured_nodes"
+      ],
+      "required_treatment": [
+        "component_rendered",
+        "no_external_asset_required",
+        "limited_text",
+        "animated_paths"
+      ]
     }
   },
   "asset_inventory_targets": {
-    "evidence_screenshot": {"min": 8, "max": 15},
-    "product_ui": {"min": 5, "max": 10},
-    "real_broll": {"min": 20, "max": 35},
-    "abstract_tech": {"min": 8, "max": 15},
-    "remotion_diagram": {"min": 5, "max": 10},
-    "yellow_opinion_card": {"min": 6, "max": 10},
-    "annotation": {"min": 10, "max": 20}
+    "evidence_screenshot": {
+      "min": 7,
+      "max": 15
+    },
+    "product_ui": {
+      "min": 5,
+      "max": 10
+    },
+    "real_broll": {
+      "min": 24,
+      "max": 45
+    },
+    "abstract_tech": {
+      "min": 0,
+      "max": 4
+    },
+    "remotion_diagram": {
+      "min": 5,
+      "max": 10
+    },
+    "yellow_opinion_card": {
+      "min": 3,
+      "max": 6
+    },
+    "remotion_motion_clip": {
+      "min": 4,
+      "max": 12
+    }
   },
   "preferred_rhythm": [
     "evidence",
@@ -96,12 +235,16 @@
     "diagram_or_keyword_interval_seconds": 20,
     "max_logo_fullscreen_seconds": 3,
     "max_concept_continuous_seconds": 12,
-    "require_highlight_for_evidence": true,
+    "require_highlight_for_evidence": false,
+    "allow_explicit_semantic_highlight": true,
     "forbid_fixed_directional_arrow": true,
-    "prefer_safe_title_source_key_paragraph_highlight": true,
+    "prefer_safe_title_source_key_paragraph_highlight": false,
+    "forbid_default_fixed_red_highlight": true,
     "forbid_internal_audit_text_in_video": true,
     "forbid_unmodified_duplicate_asset": true,
-    "abstract_must_be_followed_by_real_or_evidence": true
+    "abstract_must_be_followed_by_real_or_evidence": true,
+    "remotion_motion_clip_is_asset_source": true,
+    "remotion_motion_clip_requires_external_asset": false
   },
   "style_preset": {
     "fps": 30,

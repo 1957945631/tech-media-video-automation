@@ -16,3 +16,9 @@ test('timeline validator rejects internal audit text in audience data', () => {
 test('timeline validator does not require baked highlights for evidence screenshots', () => {
   assert.doesNotMatch(source, /missing highlight metadata/);
 });
+
+test('timeline validator checks audience-visible fields for production prompt leakage', () => {
+  assert.match(source, /checkAudienceVisibleCopy/);
+  assert.match(source, /isInternalAudienceCopy/);
+  assert.match(source, /overlayTitle\|concept\|keywords\|body\|ribbon\|text/);
+});

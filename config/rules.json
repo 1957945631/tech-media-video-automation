@@ -61,6 +61,12 @@
     "real_world_asset_interval_seconds": 15,
     "diagram_or_keyword_interval_seconds": 20,
     "max_concept_continuous_seconds": 12,
-    "require_highlight_for_evidence": true
+    "require_highlight_for_evidence": false,
+    "allow_explicit_semantic_highlight": true,
+    "forbid_default_fixed_red_highlight": true,
+    "component_rendered_asset_functions": [
+      "remotion_motion_clip",
+      "yellow_opinion_card"
+    ]
   }
 }

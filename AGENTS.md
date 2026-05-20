@@ -1,44 +1,43 @@
 # Codex 快速上下文
 
-项目根目录是 `tech-news-automation`。这是《一周科技大事》短视频自动化项目，不是单纯的新闻抓取仓库。
+仓库根目录：`tech-news-automation`。本项目用于生产竖屏短视频栏目《一周科技大事》/“硅基打底”，是完整的新闻到视频流水线，不是单纯新闻抓取器。
 
-## 正确入口
-
-每日新闻抓取：
+## 执行顺序
 
 ```bash
 npm run news:daily -- --date YYYY-MM-DD
+npm run news:select -- --date YYYY-MM-DD
+npm run news:aggregate:assets -- --date YYYY-MM-DD
+npm run capture:daily-assets -- YYYY-MM-DD
+npm run build:episode -- YYYY-MM-DD
+npm test
+npm run validate:timeline
+npm run remotion:still
+# still 和校验通过后再 npm run remotion:render
 ```
 
-该命令会通过项目桥接脚本调用 `news-aggregator-skill`，并生成项目认可的日报产物：
+最终 MP3/SRT 是时间基准。不要用口播草稿估算成片时长；不要手写 `src/data/currentEpisode.ts`，需要重建。
 
-- `data/daily/YYYY-MM-DD-news-aggregator-raw.json`
-- `data/daily/YYYY-MM-DD.json`
-- `reports/YYYY-MM-DD.md`
-- `reports/YYYY-MM-DD-daily_collect-news-aggregator.md`
+## 硬规则
 
-不要直接调用外部 `news-aggregator-skill` Python 脚本给本项目落盘。`reports/` 是平铺目录，不创建 `reports/YYYY-MM-DD/` 日期子目录。
+- 观众可见文案不得包含内部制作指令、审核/risk 信息、fallback/generated 状态，或 `Remotion 图解`、`抽象科技画面` 等工具/分类名。
+- 自制卡和图解卡自行管理布局。不要在已有文字主体上再叠全局来源角标、关键词 chips 或重复正文。
+- 证据截图默认保持干净：不加固定红框、固定箭头、固定坐标标注。只有显式语义安全高亮才允许渲染。
+- `scripts/visual_beat_plan.mjs` 是通用分镜生成器，不要把某一期新闻、公司或热点写死进共享管线。
+- `capture_daily_assets` 只能派生或读取当期 visual beats，不依赖静态当期分镜代码。
 
-## 后续流程
+## 素材优先级
 
-- 五天筛选：`npm run news:select -- --date YYYY-MM-DD`
-- 素材研究：`npm run news:aggregate:assets -- --date YYYY-MM-DD`
-- 素材采集：`npm run capture:daily-assets -- YYYY-MM-DD`
-- Episode 构建：`npm run build:episode -- YYYY-MM-DD`
-- 时间线校验：`npm run validate:timeline`
-- Remotion 渲染：先 still 预览，再按需 render。
+1. 官方/可信证据截图。
+2. 产品 UI、演示页、App 页面、开发者工具界面。
+3. 可追溯真实图片/视频 b-roll，允许 `.mp4`、`.webm`、`.mov`、`.m4v`。
+4. Remotion 语义动画，用于机制、流程、依赖关系、风险扩散、抽象系统运行。
+5. 静态生成 PNG 卡，仅用于解释、总结和节奏补充。
 
-最终 MP3 和 SRT 是视频后半段的最高时间基准。不要用口播草稿估算成片时长，也不要手写维护 `src/data/currentEpisode.ts`。
+`remotion_motion_clip` 由 `src/components/VisualCards.tsx` 组件渲染，不需要 `public/assets` 中有文件；它必须使用观众安全的 title/body/keywords，不能使用内部 `intent`。
 
-## 素材管线约束
+## 参考文档
 
-- `scripts/visual_beat_plan.mjs` 是通用分镜生成器，只能从当期 `selection` 和 `voiceover` 派生 plan。
-- 不要把具体新闻、公司、旧热点写死进通用素材管线。
-- `capture_daily_assets` 读取或生成当期 `visual-beats.json`，不导入静态当期分镜。
-- 证据截图默认不烙入固定红框、固定箭头或固定坐标标注；`annotation` 不作为库存目标。
-- 找不到贴合来源时，生成观众能看懂的信息卡或结构拆解，不硬塞无关网页截图。
-- “Remotion 图解”“抽象科技画面”等内部工具/素材分类名不得进入观众可见内容。
-
-## 新窗口使用方式
-
-新窗口开始时先读 `AGENTS.md`，再按需查看 `README.md`、`config/news-aggregator.json` 和相关脚本。
+- 结构与验收规则：`docs/project-structure-and-content-rules.md`
+- 生产质检清单：`docs/production-quality-checklist.md`
+- 视觉系统配置：`config/visual-system.json`

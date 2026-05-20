@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   assignAssetFunction,
   countAssetInventory,
+  inventoryTargets,
   validateAssetInventory,
   validateAssetRhythm
 } from './asset_function_rules.mjs';
@@ -28,6 +29,17 @@ test('assignAssetFunction maps beat roles and subjects to production asset funct
   assert.equal(assignAssetFunction(beat('take', 'keyword', 18, 21)), 'yellow_opinion_card');
 });
 
+test('assignAssetFunction uses Remotion motion clips for semantic mechanism beats', () => {
+  assert.equal(
+    assignAssetFunction(beat('mechanism-flow', 'motion', 0, 4, {concept: 'enterprise AI workflow deployment path'})),
+    'remotion_motion_clip'
+  );
+  assert.equal(
+    assignAssetFunction(beat('concept-fallback', 'concept', 4, 8, {concept: 'supply chain risk spreads through dependencies'})),
+    'remotion_motion_clip'
+  );
+});
+
 test('validateAssetRhythm rejects repeated roles and long gaps between real/explanatory assets', () => {
   const problems = validateAssetRhythm([
     beat('a', 'keyword', 0, 5),
@@ -42,6 +54,36 @@ test('validateAssetRhythm rejects repeated roles and long gaps between real/expl
   assert.ok(problems.some((problem) => problem.includes('diagram/opinion gap exceeds 20s')));
 });
 
+test('validateAssetRhythm measures coverage gaps instead of start-to-start distance', () => {
+  const problems = validateAssetRhythm([
+    beat('evidence', 'evidence', 0, 10),
+    beat('diagram', 'diagram', 10, 18),
+    beat('broll', 'broll', 18, 24)
+  ]);
+
+  assert.doesNotMatch(problems.join('\n'), /real-world asset gap|diagram\/opinion gap/);
+});
+
+test('validateAssetRhythm treats evidence screenshots as explanatory coverage', () => {
+  const problems = validateAssetRhythm([
+    beat('keyword', 'keyword', 0, 10),
+    beat('evidence', 'evidence', 10, 35),
+    beat('diagram', 'diagram', 35, 42)
+  ]);
+
+  assert.doesNotMatch(problems.join('\n'), /diagram\/opinion gap/);
+});
+
+test('validateAssetRhythm treats product UI as explanatory coverage', () => {
+  const problems = validateAssetRhythm([
+    beat('concept', 'concept', 0, 10),
+    beat('product', 'product_ui', 10, 32),
+    beat('keyword', 'keyword', 32, 39)
+  ]);
+
+  assert.doesNotMatch(problems.join('\n'), /diagram\/opinion gap/);
+});
+
 test('validateAssetInventory enforces minimum production stock for a 3-5 minute episode', () => {
   const inventory = countAssetInventory([
     {assetFunction: 'evidence_screenshot'},
@@ -52,5 +94,20 @@ test('validateAssetInventory enforces minimum production stock for a 3-5 minute 
 
   assert.ok(problems.some((problem) => problem.includes('evidence_screenshot')));
   assert.ok(problems.some((problem) => problem.includes('real_broll')));
-  assert.ok(problems.some((problem) => problem.includes('abstract_tech')));
+  assert.ok(problems.some((problem) => problem.includes('remotion_motion_clip')));
+});
+
+test('inventory targets reduce dependence on generated opinion cards', () => {
+  assert.ok(inventoryTargets.real_broll.min >= 24);
+  assert.ok(inventoryTargets.remotion_motion_clip.min >= 4);
+  assert.ok(inventoryTargets.yellow_opinion_card.max <= 6);
+});
+
+test('validateAssetRhythm flags consecutive generated cards', () => {
+  const problems = validateAssetRhythm([
+    beat('a', 'keyword', 0, 3, {assetFunction: 'yellow_opinion_card'}),
+    beat('b', 'keyword', 3, 6, {assetFunction: 'yellow_opinion_card'})
+  ]);
+
+  assert.ok(problems.some((problem) => problem.includes('consecutive generated cards')));
 });

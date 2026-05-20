@@ -50,3 +50,13 @@ test('mergeResearchSourcesIntoPools adds research sources to functional pools an
   assert.equal(merged.evidence_screenshot.length, 1);
   assert.equal(pools.product_ui.length, 0);
 });
+
+test('normalizeResearchSources marks direct media assets as first-class image or video sources', () => {
+  const sources = normalizeResearchSources([
+    {title: 'Launch demo', url: 'https://cdn.example.com/demo.mp4'},
+    {title: 'Product still', url: 'https://cdn.example.com/ui.webp'}
+  ]);
+
+  assert.equal(sources[0].mediaType, 'video');
+  assert.equal(sources[1].mediaType, 'image');
+});

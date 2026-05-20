@@ -1,8 +1,9 @@
 const tolerance = 0.04;
-const visualRoles = new Set(['evidence', 'product_ui', 'person_or_company', 'broll', 'concept', 'diagram', 'keyword']);
+const visualRoles = new Set(['evidence', 'product_ui', 'person_or_company', 'broll', 'concept', 'motion', 'diagram', 'keyword']);
 const transitions = new Set(['cut', 'flash', 'glitch', 'zoom', 'scan']);
 const realWorldRoles = new Set(['evidence', 'product_ui', 'person_or_company', 'broll']);
-const explanatoryRoles = new Set(['diagram', 'keyword']);
+const explanatoryRoles = new Set(['concept', 'motion', 'diagram', 'evidence', 'keyword', 'product_ui']);
+const componentRenderedAssetFunctions = new Set(['yellow_opinion_card', 'remotion_motion_clip']);
 
 export const isVisualRhythmProblem = (problem) =>
   /role repetition|real-world asset gap|diagram\/(?:opinion|keyword) gap|concept visuals continue|abstract visuals continue|more than 2 times/i.test(problem);
@@ -32,7 +33,7 @@ export const validateVisualBeats = ({beats, segments, captions, durationSeconds}
       continue;
     }
 
-    if (!beat.assets?.length && beat.assetFunction !== 'yellow_opinion_card') {
+    if (!beat.assets?.length && !componentRenderedAssetFunctions.has(beat.assetFunction)) {
       problems.push(`${label} missing assets`);
     }
 
@@ -100,8 +101,8 @@ export const validateVisualBeats = ({beats, segments, captions, durationSeconds}
 
   let sameRoleCount = 1;
   let conceptStart = null;
-  let lastRealWorldStart = null;
-  let lastExplanatoryStart = null;
+  let lastRealWorldEnd = null;
+  let lastExplanatoryEnd = null;
   const sorted = [...beats].sort((a, b) => a.start - b.start);
 
   for (let index = 0; index < sorted.length; index += 1) {
@@ -118,17 +119,17 @@ export const validateVisualBeats = ({beats, segments, captions, durationSeconds}
     }
 
     if (realWorldRoles.has(current.visualRole)) {
-      if (lastRealWorldStart !== null && current.start - lastRealWorldStart > 15 + tolerance) {
+      if (lastRealWorldEnd !== null && current.start - lastRealWorldEnd > 15 + tolerance) {
         problems.push(`visualBeats real-world asset gap exceeds 15s before ${current.id}`);
       }
-      lastRealWorldStart = current.start;
+      lastRealWorldEnd = Math.max(lastRealWorldEnd ?? current.end, current.end);
     }
 
     if (explanatoryRoles.has(current.visualRole)) {
-      if (lastExplanatoryStart !== null && current.start - lastExplanatoryStart > 20 + tolerance) {
+      if (lastExplanatoryEnd !== null && current.start - lastExplanatoryEnd > 20 + tolerance) {
         problems.push(`visualBeats diagram/keyword gap exceeds 20s before ${current.id}`);
       }
-      lastExplanatoryStart = current.start;
+      lastExplanatoryEnd = Math.max(lastExplanatoryEnd ?? current.end, current.end);
     }
 
     if (current.visualRole === 'concept') {

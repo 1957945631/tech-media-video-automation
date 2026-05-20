@@ -18,6 +18,20 @@ const normalizeUrl = (item) => {
   return item.url ?? item.link ?? item.source_url ?? item.github_url ?? item.discussion_url ?? null;
 };
 
+const mediaTypeFor = (item, url = normalizeUrl(item)) => {
+  const explicit = String(item.mediaType ?? item.media_type ?? '').toLowerCase();
+  if (['image', 'video', 'webpage', 'generated_card'].includes(explicit)) {
+    return explicit;
+  }
+  if (/\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(url ?? '')) {
+    return 'video';
+  }
+  if (/\.(png|jpe?g|webp|gif)(\?|#|$)/i.test(url ?? '')) {
+    return 'image';
+  }
+  return 'webpage';
+};
+
 const textOf = (item) => {
   return `${item.title ?? ''} ${item.summary ?? ''} ${item.content ?? ''} ${item.source ?? ''} ${normalizeUrl(item) ?? ''}`.toLowerCase();
 };
@@ -59,6 +73,8 @@ export const normalizeResearchSources = (payload, {limit = 40} = {}) => {
         name: normalizeSourceName(item),
         title: item.title ?? item.summary ?? url,
         url,
+        mediaType: mediaTypeFor(item, url),
+        localPath: item.local_path ?? item.asset_path ?? null,
         category: categoryFor(item),
         heat: item.heat ?? null,
         time: item.time ?? null

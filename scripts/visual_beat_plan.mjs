@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import {cleanAudienceKeywords, cleanAudienceText} from './audience_copy.mjs';
 
 const accentPalette = ['#f5b400', '#5eead4', '#8ab4f8', '#f87171', '#60a5fa', '#a78bfa', '#34d399'];
 
@@ -78,7 +79,6 @@ const getKicker = (item) => {
 
 const getSummary = (item) =>
   item.event_summary ??
-  item.video_angle ??
   item.why_it_matters ??
   item.summary ??
   item.description ??
@@ -90,25 +90,27 @@ const storyFromSelectionItem = (item, index) => {
     item.title,
     item.category,
     item.source_name,
-    item.video_angle,
     item.event_summary,
     item.why_it_matters
-  ]);
-  const title = item.title ?? `新闻 ${index + 1}`;
+  ], 18);
+  const audienceKeywords = cleanAudienceKeywords(keywords, 12);
+  const title = item.title ?? `News ${index + 1}`;
+  const body = cleanAudienceText(compact(getSummary(item), 96), compact(title, 64));
+  const ribbon = cleanAudienceText(compact(item.why_it_matters ?? item.event_summary ?? item.category ?? body, 30), compact(body, 30));
 
   return {
     id: slugify(`${index + 1}-${title}`),
     segmentId: `news_${index + 1}`,
     kicker: getKicker(item),
     title: compact(title, 28),
-    body: compact(getSummary(item), 96),
-    ribbon: compact(item.video_angle ?? item.why_it_matters ?? item.category ?? '值得关注的科技变化', 30),
+    body,
+    ribbon,
     accent: accentPalette[index % accentPalette.length],
     sourceName: item.source_name ?? item.publisher ?? null,
     sourceUrl: item.source_url ?? item.url ?? null,
     risk: item.risk_reminder ?? item.risk ?? item.fact_check_notes ?? null,
     category: item.category ?? null,
-    keywords,
+    keywords: audienceKeywords,
     rawTitle: title
   };
 };
@@ -120,11 +122,11 @@ const makeBeat = ({id, segmentId, intent, subject, action, concept, visualRole, 
   intent,
   subject,
   action,
-  concept,
+  concept: cleanAudienceText(concept, subject),
   visualRole,
-  keywords,
-  assetQuery,
-  overlayTitle,
+  keywords: cleanAudienceKeywords(keywords, 12),
+  assetQuery: asArray(assetQuery).map((query) => cleanAudienceText(query, subject)).filter(Boolean),
+  overlayTitle: cleanAudienceText(overlayTitle, subject),
   transitionOut
 });
 
@@ -186,19 +188,6 @@ const buildStoryBeats = (story, index) => {
       transitionOut: 'cut'
     }),
     makeBeat({
-      id: `${story.id}-takeaway`,
-      segmentId: story.segmentId,
-      intent: '用一句判断收束这一条新闻，让观众记住它和本期主线的关系。',
-      subject: story.rawTitle,
-      action: '提炼判断',
-      concept: story.ribbon,
-      visualRole: 'keyword',
-      keywords: story.keywords,
-      assetQuery: [`${story.rawTitle} ${keyText} takeaway`],
-      overlayTitle: compact(story.ribbon, 24),
-      transitionOut: 'flash'
-    }),
-    makeBeat({
       id: `${story.id}-impact`,
       segmentId: story.segmentId,
       intent: '落到用户、行业或下一步影响，避免只停留在标题转述。',
@@ -223,6 +212,19 @@ const buildStoryBeats = (story, index) => {
       assetQuery: [`${story.rawTitle} ${keyText} user industry impact scene`],
       overlayTitle: compact(`落点：${story.kicker}`, 24),
       transitionOut: 'cut'
+    }),
+    makeBeat({
+      id: `${story.id}-takeaway`,
+      segmentId: story.segmentId,
+      intent: '用一句判断收束这一条新闻，让观众记住它和本期主线的关系。',
+      subject: story.rawTitle,
+      action: '提炼判断',
+      concept: story.ribbon,
+      visualRole: 'keyword',
+      keywords: story.keywords,
+      assetQuery: [`${story.rawTitle} ${keyText} takeaway`],
+      overlayTitle: compact(story.ribbon, 24),
+      transitionOut: 'flash'
     }),
     makeBeat({
       id: `${story.id}-transition-scene`,
@@ -290,19 +292,6 @@ export const buildVisualPlan = ({selection, voiceoverText = '', date = ''}) => {
       transitionOut: 'cut'
     }),
     makeBeat({
-      id: 'intro-map',
-      segmentId: 'intro',
-      intent: '把多条新闻整理成可理解的结构，而不是堆标题。',
-      subject: '本期推荐新闻结构',
-      action: '串联议题',
-      concept: storyPlan.map((story) => story.kicker).join(' / '),
-      visualRole: 'diagram',
-      keywords: introKeywords,
-      assetQuery: [`${storyPlan.map((story) => story.rawTitle).join(' ')} overview map`],
-      overlayTitle: '先看结构',
-      transitionOut: 'cut'
-    }),
-    makeBeat({
       id: 'intro-real-world',
       segmentId: 'intro',
       intent: '用真实科技产业场景建立本期不是纯文字资讯的视觉基调。',
@@ -313,6 +302,19 @@ export const buildVisualPlan = ({selection, voiceoverText = '', date = ''}) => {
       keywords: introKeywords,
       assetQuery: [`${introConcept} real technology industry b-roll`],
       overlayTitle: '回到真实世界',
+      transitionOut: 'cut'
+    }),
+    makeBeat({
+      id: 'intro-map',
+      segmentId: 'intro',
+      intent: '把多条新闻整理成可理解的结构，而不是堆标题。',
+      subject: '本期推荐新闻结构',
+      action: '串联议题',
+      concept: storyPlan.map((story) => story.kicker).join(' / '),
+      visualRole: 'diagram',
+      keywords: introKeywords,
+      assetQuery: [`${storyPlan.map((story) => story.rawTitle).join(' ')} overview map`],
+      overlayTitle: '先看结构',
       transitionOut: 'cut'
     }),
     makeBeat({
@@ -343,19 +345,6 @@ export const buildVisualPlan = ({selection, voiceoverText = '', date = ''}) => {
       transitionOut: 'cut'
     }),
     makeBeat({
-      id: 'outro-impact',
-      segmentId: 'outro',
-      intent: '提醒观众接下来继续关注真实产品、产业和规则变化。',
-      subject: '后续观察',
-      action: '提示影响',
-      concept: '真正重要的是这些变化怎样进入产品、产业和日常使用。',
-      visualRole: 'keyword',
-      keywords: ['产品', '产业', '规则', ...introKeywords.slice(0, 3)],
-      assetQuery: [`${introConcept} product industry regulation impact`],
-      overlayTitle: '下一步看落地',
-      transitionOut: 'cut'
-    }),
-    makeBeat({
       id: 'outro-real-world',
       segmentId: 'outro',
       intent: '用真实产业场景收束，强调这些新闻最终会进入产品、产业和生活。',
@@ -371,14 +360,27 @@ export const buildVisualPlan = ({selection, voiceoverText = '', date = ''}) => {
     makeBeat({
       id: 'outro-concept',
       segmentId: 'outro',
-      intent: '用概念画面完成最后的趋势收束。',
-      subject: '本期趋势',
-      action: '趋势收束',
+      intent: '用一句关键判断承接总结，避免结尾停在抽象科技画面。',
+      subject: '趋势进入现实',
+      action: '提炼判断',
       concept: introConcept,
-      visualRole: 'concept',
+      visualRole: 'keyword',
       keywords: introKeywords,
-      assetQuery: [`${introConcept} technology trend concept`],
+      assetQuery: [`${introConcept} closing takeaway`],
       overlayTitle: '继续观察',
+      transitionOut: 'cut'
+    }),
+    makeBeat({
+      id: 'outro-impact',
+      segmentId: 'outro',
+      intent: '提醒观众接下来继续关注真实产品、产业和规则变化。',
+      subject: '后续观察',
+      action: '提示影响',
+      concept: '真正重要的是这些变化怎样进入产品、产业和日常使用。',
+      visualRole: 'broll',
+      keywords: ['产品', '产业', '规则', ...introKeywords.slice(0, 3)],
+      assetQuery: [`${introConcept} product industry regulation impact`],
+      overlayTitle: '下一步看落地',
       transitionOut: 'cut'
     })
   ];

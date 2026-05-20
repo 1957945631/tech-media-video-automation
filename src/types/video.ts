@@ -6,10 +6,11 @@ export type AssetFunction =
   | 'industry_broll'
   | 'commercial_broll'
   | 'abstract_tech'
+  | 'remotion_motion_clip'
   | 'remotion_diagram'
   | 'yellow_opinion_card';
 
-export type VisualRole = 'evidence' | 'product_ui' | 'person_or_company' | 'broll' | 'concept' | 'diagram' | 'keyword';
+export type VisualRole = 'evidence' | 'product_ui' | 'person_or_company' | 'broll' | 'concept' | 'motion' | 'diagram' | 'keyword';
 
 export type TransitionName = 'cut' | 'flash' | 'glitch' | 'zoom' | 'scan';
 

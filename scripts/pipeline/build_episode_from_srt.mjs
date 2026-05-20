@@ -4,6 +4,8 @@ import {fileURLToPath} from 'node:url';
 import {parseMedia} from '@remotion/media-parser';
 import {nodeReader} from '@remotion/media-parser/node';
 import {assignAssetFunction} from '../asset_function_rules.mjs';
+import {cleanAudienceKeywords, cleanAudienceText} from '../audience_copy.mjs';
+import {allocateSegmentCaptionRanges, assignBeatCaptionRanges} from '../caption_range_allocation.mjs';
 import {parseSrt, secondsToTsLiteral} from '../srt_utils.mjs';
 import {captionRangeToTime, isVisualRhythmProblem, validateVisualBeats} from '../visual_beats_utils.mjs';
 import {buildVisualPlan} from '../visual_beat_plan.mjs';
@@ -81,58 +83,6 @@ const toTsObject = (value, extra = []) => {
   return `    {\n${[...entries, ...extra].join(',\n')}\n    }`;
 };
 
-const allocateSegmentCaptionRanges = ({captions, storyPlan, visualBeatPlan}) => {
-  const segmentOrder = ['intro', ...storyPlan.map((story) => story.segmentId), 'outro'];
-  const beatCounts = new Map(segmentOrder.map((segment) => [
-    segment,
-    Math.max(1, visualBeatPlan.filter((beat) => beat.segmentId === segment).length)
-  ]));
-  const totalWeight = [...beatCounts.values()].reduce((sum, count) => sum + count, 0);
-  let cursor = 0;
-
-  return segmentOrder.map((segment, index) => {
-    const remainingSegments = segmentOrder.length - index - 1;
-    const remainingCaptions = captions.length - cursor;
-    const weight = beatCounts.get(segment) ?? 1;
-    const width = index === segmentOrder.length - 1
-      ? remainingCaptions
-      : Math.max(1, Math.round((captions.length * weight) / totalWeight));
-    const safeWidth = Math.min(Math.max(1, width), Math.max(1, remainingCaptions - remainingSegments));
-    const boundary = {segment, startCaption: cursor, endCaption: cursor + safeWidth};
-    cursor = boundary.endCaption;
-    return boundary;
-  });
-};
-
-const assignBeatCaptionRanges = ({beats, boundaries}) => {
-  const bySegment = new Map(boundaries.map((boundary) => [boundary.segment, boundary]));
-  const positions = new Map();
-  const counts = new Map();
-
-  for (const beat of beats) {
-    counts.set(beat.segmentId, (counts.get(beat.segmentId) ?? 0) + 1);
-  }
-
-  return beats.map((beat) => {
-    const boundary = bySegment.get(beat.segmentId);
-    if (!boundary) {
-      return beat;
-    }
-
-    const count = counts.get(beat.segmentId) ?? 1;
-    const position = positions.get(beat.segmentId) ?? 0;
-    positions.set(beat.segmentId, position + 1);
-    const span = Math.max(1, boundary.endCaption - boundary.startCaption);
-    const start = boundary.startCaption + Math.floor((span * position) / count);
-    const end = boundary.startCaption + Math.floor((span * (position + 1)) / count);
-
-    return {
-      ...beat,
-      captionRange: [start, Math.max(start + 1, Math.min(boundary.endCaption, end))]
-    };
-  });
-};
-
 const main = async () => {
   const selection = JSON.parse(await fs.readFile(path.join(root, 'data', 'selected', `${date}-selection.json`), 'utf8'));
   const voiceoverText = await fs.readFile(path.join(root, 'data', 'video-scripts', `${date}-voiceover.md`), 'utf8').catch(() => '');
@@ -143,7 +93,7 @@ const main = async () => {
   const {storyPlan} = plan;
   const beatAssetData = await loadBeatAssets();
   const beatAssetsById = beatAssetData.assetsByBeat;
-  const sourceVisualBeatPlan = beatAssetData.beats.length ? beatAssetData.beats : plan.visualBeatPlan;
+  const sourceVisualBeatPlan = plan.visualBeatPlan;
   const segmentBoundaries = allocateSegmentCaptionRanges({captions, storyPlan, visualBeatPlan: sourceVisualBeatPlan});
   const timedVisualBeatPlan = assignBeatCaptionRanges({beats: sourceVisualBeatPlan, boundaries: segmentBoundaries});
 
@@ -159,7 +109,7 @@ const main = async () => {
         end,
         kicker: '本期导览',
         title: '一周科技大事',
-        body: '本期按照最终配音和 SRT 生成时间线，用真实证据、产品界面、产业画面、结构拆解和关键判断讲清楚一周科技变化。',
+        body: '本期用真实证据、产品界面、产业现场、结构拆解和关键判断讲清楚一周科技变化。',
         ribbon: '字幕跟随口播，画面跟随内容',
         accent: '#f5b400',
         sourceName: `reports/${date}.md`,
@@ -204,7 +154,7 @@ const main = async () => {
   const visualBeats = timedVisualBeatPlan.map((beat) => {
     const {start, end} = captionRangeToTime(beat.captionRange, captions, durationSeconds);
     const assignedAssetFunction = assignAssetFunction(beat);
-    const assetFunction = assignedAssetFunction === 'abstract_tech' ? 'yellow_opinion_card' : assignedAssetFunction;
+    const assetFunction = assignedAssetFunction === 'abstract_tech' ? 'remotion_motion_clip' : assignedAssetFunction;
     const assets = (beatAssetsById.get(beat.id) ?? []).filter((asset) => !asset.includes('abstract_tech'));
 
     return {
@@ -213,15 +163,15 @@ const main = async () => {
       start,
       end,
       captionRange: beat.captionRange,
-      intent: beat.intent,
+      intent: cleanAudienceText(beat.intent, beat.subject),
       subject: beat.subject,
       action: beat.action,
-      concept: beat.concept,
+      concept: cleanAudienceText(beat.concept, beat.subject),
       visualRole: beat.visualRole,
       assetFunction,
-      keywords: beat.keywords,
-      assetQuery: beat.assetQuery,
-      overlayTitle: beat.overlayTitle,
+      keywords: cleanAudienceKeywords(beat.keywords, 12),
+      assetQuery: (beat.assetQuery ?? []).map((query) => cleanAudienceText(query, beat.subject)).filter(Boolean),
+      overlayTitle: cleanAudienceText(beat.overlayTitle, beat.subject),
       transitionOut: beat.transitionOut,
       highlight: beat.highlight,
       hasHighlight: beat.hasHighlight,

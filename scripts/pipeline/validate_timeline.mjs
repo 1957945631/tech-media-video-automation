@@ -3,6 +3,7 @@ import path from 'node:path';
 import {parseMedia} from '@remotion/media-parser';
 import {nodeReader} from '@remotion/media-parser/node';
 import {validateAssetRhythm} from '../asset_function_rules.mjs';
+import {isInternalAudienceCopy} from '../audience_copy.mjs';
 import {isVisualRhythmProblem, validateVisualBeats} from '../visual_beats_utils.mjs';
 
 const root = process.cwd();
@@ -143,6 +144,25 @@ const checkContinuity = (items, label, options = {}) => {
   return problems;
 };
 
+const visibleFieldPattern = /\b(overlayTitle|concept|keywords|body|ribbon|text):\s*("[^"]*"|'[^']*'|\[[^\n]+\])/g;
+
+const checkAudienceVisibleCopy = (source) => {
+  const problems = [];
+  for (const match of source.matchAll(visibleFieldPattern)) {
+    const [, field, rawValue] = match;
+    const values = rawValue.startsWith('[')
+      ? rawValue.match(/"([^"]*)"|'([^']*)'/g)?.map((item) => item.slice(1, -1)) ?? []
+      : [rawValue.slice(1, -1)];
+
+    for (const value of values) {
+      if (value && isInternalAudienceCopy(value)) {
+        problems.push(`audience-visible ${field} contains internal production copy: ${value.slice(0, 48)}`);
+      }
+    }
+  }
+  return problems;
+};
+
 const mediaDuration = async (file) => {
   const result = await parseMedia({
     src: file,
@@ -168,6 +188,7 @@ const main = async () => {
   const problems = [
     ...checkContinuity(segments, 'segments'),
     ...checkContinuity(captions, 'captions', {allowGaps: true}),
+    ...checkAudienceVisibleCopy(source),
     ...visualBeatProblems.filter((problem) => !isVisualRhythmProblem(problem)),
     ...assetRhythmProblems.filter((problem) => !isVisualRhythmProblem(problem))
   ];

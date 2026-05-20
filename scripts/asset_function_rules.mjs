@@ -7,16 +7,26 @@ const realWorldFunctions = new Set([
   'commercial_broll'
 ]);
 
-const explanatoryFunctions = new Set(['remotion_diagram', 'yellow_opinion_card']);
+const explanatoryFunctions = new Set([
+  'evidence_screenshot',
+  'product_ui',
+  'remotion_motion_clip',
+  'remotion_diagram',
+  'yellow_opinion_card'
+]);
 
 export const inventoryTargets = {
   evidence_screenshot: {min: 7, max: 15},
   product_ui: {min: 5, max: 10},
-  real_broll: {min: 20, max: 35},
-  abstract_tech: {min: 8, max: 15},
+  real_broll: {min: 24, max: 45},
+  remotion_motion_clip: {min: 4, max: 12},
+  abstract_tech: {min: 0, max: 4},
   remotion_diagram: {min: 5, max: 10},
-  yellow_opinion_card: {min: 6, max: 10}
+  yellow_opinion_card: {min: 3, max: 6}
 };
+
+const motionTriggers =
+  /mechanism|workflow|flow|pipeline|path|dependency|dependencies|supply chain|risk spreads|routing|orchestration|system|loop|feedback|infrastructure|deployment|rules|agent|鏈哄埗|娴佺▼|渚濊禆|渚涘簲閾緗绯荤粺|閮ㄧ讲|璺緞|瑙勫垯|鑱斿姩|鎵╂暎|闂幆|鎶借薄/i;
 
 export const assignAssetFunction = (beat) => {
   const text = `${beat.id ?? ''} ${beat.subject ?? ''} ${beat.concept ?? ''} ${(beat.keywords ?? []).join(' ')}`;
@@ -41,7 +51,14 @@ export const assignAssetFunction = (beat) => {
     return 'yellow_opinion_card';
   }
 
+  if (beat.visualRole === 'motion') {
+    return 'remotion_motion_clip';
+  }
+
   if (beat.visualRole === 'concept') {
+    if (motionTriggers.test(text)) {
+      return 'remotion_motion_clip';
+    }
     return 'abstract_tech';
   }
 
@@ -96,13 +113,14 @@ export const validateAssetRhythm = (beats) => {
   const sorted = [...beats].sort((a, b) => a.start - b.start);
   let sameRoleCount = 1;
   let abstractStart = null;
-  let lastRealWorldStart = null;
-  let lastExplanatoryStart = null;
+  let lastRealWorldEnd = null;
+  let lastExplanatoryEnd = null;
 
   for (let index = 0; index < sorted.length; index += 1) {
     const beat = sorted[index];
     const previous = sorted[index - 1];
     const assetFunction = assignAssetFunction(beat);
+    const previousAssetFunction = previous ? assignAssetFunction(previous) : null;
 
     if (previous && beat.visualRole === previous.visualRole) {
       sameRoleCount += 1;
@@ -113,24 +131,28 @@ export const validateAssetRhythm = (beats) => {
       sameRoleCount = 1;
     }
 
+    if (previousAssetFunction === 'yellow_opinion_card' && assetFunction === 'yellow_opinion_card') {
+      problems.push(`${beat.id} consecutive generated cards should be broken up with real footage, product UI, or evidence`);
+    }
+
     if (realWorldFunctions.has(assetFunction)) {
-      if (lastRealWorldStart === null && beat.start > 15.04) {
+      if (lastRealWorldEnd === null && beat.start > 15.04) {
         problems.push(`${beat.id} real-world asset gap exceeds 15s from episode start`);
       }
-      if (lastRealWorldStart !== null && beat.start - lastRealWorldStart > 15.04) {
+      if (lastRealWorldEnd !== null && beat.start - lastRealWorldEnd > 15.04) {
         problems.push(`${beat.id} real-world asset gap exceeds 15s`);
       }
-      lastRealWorldStart = beat.start;
+      lastRealWorldEnd = Math.max(lastRealWorldEnd ?? beat.end, beat.end);
     }
 
     if (explanatoryFunctions.has(assetFunction)) {
-      if (lastExplanatoryStart === null && beat.start > 20.04) {
+      if (lastExplanatoryEnd === null && beat.start > 20.04) {
         problems.push(`${beat.id} diagram/opinion gap exceeds 20s from episode start`);
       }
-      if (lastExplanatoryStart !== null && beat.start - lastExplanatoryStart > 20.04) {
+      if (lastExplanatoryEnd !== null && beat.start - lastExplanatoryEnd > 20.04) {
         problems.push(`${beat.id} diagram/opinion gap exceeds 20s`);
       }
-      lastExplanatoryStart = beat.start;
+      lastExplanatoryEnd = Math.max(lastExplanatoryEnd ?? beat.end, beat.end);
     }
 
     if (assetFunction === 'abstract_tech') {
@@ -138,7 +160,7 @@ export const validateAssetRhythm = (beats) => {
       if (beat.end - abstractStart > 12.04) {
         problems.push(`${beat.id} abstract visuals continue over 12s`);
       }
-    } else if (previous && assignAssetFunction(previous) === 'abstract_tech' && !realWorldFunctions.has(assetFunction)) {
+    } else if (previous && previousAssetFunction === 'abstract_tech' && !realWorldFunctions.has(assetFunction)) {
       problems.push(`${beat.id} must follow abstract visuals with real-world or evidence material`);
       abstractStart = null;
     } else {

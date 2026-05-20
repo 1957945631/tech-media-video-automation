@@ -36,9 +36,52 @@ test('generated fallback cards do not leak internal placeholders or absolute nod
 });
 
 test('Remotion only applies dynamic highlights when a beat explicitly asks for one', () => {
-  assert.match(visualCardsSource, /highlight && !beat\?\.hasHighlight/);
+  assert.doesNotMatch(visualCardsSource, /highlight && !beat\?\.hasHighlight/);
+  assert.match(visualCardsSource, /Boolean\(beat\?\.highlight && beat\?\.hasHighlight\)/);
+  assert.doesNotMatch(visualCardsSource, /<CardShell \{\.\.\.props\} fit="contain" highlight \/>/);
 });
 
-test('HighlightEngine uses a broad conservative focus label instead of a directional arrow variant', () => {
+test('HighlightEngine uses a subtle non-red focus treatment instead of fixed red boxes', () => {
   assert.doesNotMatch(highlightSource, /variant\?: 'box' \| 'arrow'/);
+  assert.doesNotMatch(highlightSource, /#ff2d2d/);
+  assert.doesNotMatch(highlightSource, /看标题 \/ 来源 \/ 关键段落/);
+  assert.doesNotMatch(highlightSource, /border:\s*['"]\d+px solid #ff/i);
+  assert.match(highlightSource, /enabled = false/);
+});
+
+test('self-authored cards manage their own layout without global overlays', () => {
+  assert.match(visualCardsSource, /showSourceTag\?: boolean/);
+  assert.match(visualCardsSource, /showKeywordChips\?: boolean/);
+  assert.match(visualCardsSource, /showSourceTag && <SourceTag/);
+  assert.match(visualCardsSource, /showKeywordChips && <KeywordChips/);
+  assert.match(visualCardsSource, /showSourceTag=\{false\}/);
+  assert.match(visualCardsSource, /showKeywordChips=\{false\}/);
+});
+
+test('visible Remotion cards never render internal beat intent as audience copy', () => {
+  assert.doesNotMatch(visualCardsSource, /beat\?\.intent\s*\?\?/);
+  assert.doesNotMatch(visualCardsSource, /body\s*=\s*truncateText\(beat\?\.intent/);
+  assert.match(visualCardsSource, /pickAudienceBody/);
+  assert.match(visualCardsSource, /cleanAudienceKeywords/);
+});
+
+test('generated fallback cards do not use internal intent as body copy', () => {
+  assert.doesNotMatch(captureSource, /body:\s*beat\.intent/);
+  assert.match(captureSource, /pickAudienceBody/);
+  assert.match(captureSource, /cleanAudienceKeywords/);
+});
+
+test('direct image and video research assets are copied before falling back to generated cards', () => {
+  assert.match(captureSource, /downloadRemoteMediaAsset/);
+  assert.match(captureSource, /\['image', 'video'\]\.includes\(source\?\.mediaType\)/);
+  assert.match(captureSource, /Buffer\.from\(await response\.arrayBuffer\(\)\)/);
+  assert.match(captureSource, /mediaExtensionFor/);
+  assert.match(captureSource, /source\?\.localPath \?\? source\?\.url/);
+});
+
+test('Remotion semantic motion clips are rendered by the component layer, not generated as PNG cards', () => {
+  assert.match(visualCardsSource, /MotionClip/);
+  assert.match(visualCardsSource, /case 'remotion_motion_clip'/);
+  assert.doesNotMatch(visualCardsSource, /SEMANTIC MOTION/);
+  assert.match(captureSource, /assetFunction === 'remotion_motion_clip'/);
 });

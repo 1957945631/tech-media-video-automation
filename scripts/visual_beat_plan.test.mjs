@@ -62,6 +62,59 @@ test('buildVisualPlan creates generic intro, per-story, and outro beat structure
   assert.ok(plan.visualBeatPlan.some((beat) => beat.segmentId === 'news_2' && beat.visualRole === 'evidence'));
 });
 
+test('buildVisualPlan brings real-world intro footage before the overview map', () => {
+  const plan = buildVisualPlan({selection: sampleSelection, voiceoverText: sampleVoiceover, date: '2026-05-19'});
+  const introBeats = plan.visualBeatPlan.filter((beat) => beat.segmentId === 'intro');
+  const realWorldIndex = introBeats.findIndex((beat) => beat.id === 'intro-real-world');
+  const mapIndex = introBeats.findIndex((beat) => beat.id === 'intro-map');
+
+  assert.ok(realWorldIndex > -1);
+  assert.ok(mapIndex > -1);
+  assert.ok(realWorldIndex < mapIndex);
+});
+
+test('buildVisualPlan closes the episode without a long concept card and returns to real-world material before final summary', () => {
+  const plan = buildVisualPlan({selection: sampleSelection, voiceoverText: sampleVoiceover, date: '2026-05-19'});
+  const outroBeats = plan.visualBeatPlan.filter((beat) => beat.segmentId === 'outro');
+  const realWorldIndex = outroBeats.findIndex((beat) => beat.id === 'outro-real-world');
+
+  assert.ok(realWorldIndex > 0);
+  assert.ok(realWorldIndex < outroBeats.length - 1);
+  assert.equal(outroBeats[realWorldIndex].visualRole, 'broll');
+  assert.ok(!outroBeats.some((beat) => beat.visualRole === 'concept'));
+});
+
+test('buildVisualPlan does not end with consecutive generated keyword cards', () => {
+  const plan = buildVisualPlan({selection: sampleSelection, voiceoverText: sampleVoiceover, date: '2026-05-19'});
+  const outroBeats = plan.visualBeatPlan.filter((beat) => beat.segmentId === 'outro');
+
+  for (let index = 1; index < outroBeats.length; index += 1) {
+    assert.notEqual(`${outroBeats[index - 1].visualRole}:${outroBeats[index].visualRole}`, 'keyword:keyword');
+  }
+});
+
+test('buildVisualPlan places impact before takeaway to keep real-world cadence tight', () => {
+  const plan = buildVisualPlan({selection: sampleSelection, voiceoverText: sampleVoiceover, date: '2026-05-19'});
+  const storyBeats = plan.visualBeatPlan.filter((beat) => beat.segmentId === 'news_1');
+  const impactIndex = storyBeats.findIndex((beat) => beat.id.endsWith('-impact'));
+  const takeawayIndex = storyBeats.findIndex((beat) => beat.id.endsWith('-takeaway'));
+
+  assert.ok(impactIndex > -1);
+  assert.ok(takeawayIndex > -1);
+  assert.ok(impactIndex < takeawayIndex);
+});
+
+test('buildVisualPlan places user scene before takeaway to avoid long non-real stretches', () => {
+  const plan = buildVisualPlan({selection: sampleSelection, voiceoverText: sampleVoiceover, date: '2026-05-19'});
+  const storyBeats = plan.visualBeatPlan.filter((beat) => beat.segmentId === 'news_1');
+  const userSceneIndex = storyBeats.findIndex((beat) => beat.id.endsWith('-user-or-industry-scene'));
+  const takeawayIndex = storyBeats.findIndex((beat) => beat.id.endsWith('-takeaway'));
+
+  assert.ok(userSceneIndex > -1);
+  assert.ok(takeawayIndex > -1);
+  assert.ok(userSceneIndex < takeawayIndex);
+});
+
 test('chooseBestSource prefers semantically matched sources and reports why it matched', () => {
   const beat = {
     id: 'news-1-evidence',
