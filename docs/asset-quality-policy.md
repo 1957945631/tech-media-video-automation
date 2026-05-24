@@ -35,6 +35,9 @@
 - 每期至少 4 个 motion clip，推荐 intro 或每条主新闻的 concept beat 使用。
 - motion clip 适合机制、流程、系统运行、依赖关系、风险扩散、企业部署、供应链和政策影响。
 - motion clip 必须使用观众安全的 title/body/keywords，不能读取内部 `intent`。
+- 素材不足时，Remotion 组件必须承担解释功能，而不是只做抽象背景；应按语义切换信息图变体。
+- 常用变体包括：`flow_map` 流程路径、`comparison_panel` 对比面板、`timeline_orbit` 趋势时间线、`signal_stack` 信号堆叠、`summary_matrix` 总结矩阵。
+- 相邻 Remotion 组件应尽量避免使用同一 `animationVariant`，减少连续小动画带来的审美疲劳。
 
 ## 质量报告
 
