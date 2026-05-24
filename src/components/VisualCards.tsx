@@ -112,8 +112,7 @@ const MediaFill: React.FC<{asset: string | null; progress: number; fit?: 'cover'
           position: 'absolute',
           inset: 0,
           background:
-            'linear-gradient(rgba(255,255,255,0.18) 2px, transparent 2px), linear-gradient(90deg, rgba(255,255,255,0.18) 2px, transparent 2px), #080808',
-          backgroundSize: '92px 92px'
+            'radial-gradient(circle at 36% 28%, rgba(245,180,0,0.22), rgba(245,180,0,0.05) 42%, rgba(0,0,0,0) 70%), radial-gradient(circle at 72% 72%, rgba(94,234,212,0.12), rgba(0,0,0,0) 58%), #080808'
         }}
       />
     );
@@ -160,6 +159,7 @@ const CardShell: React.FC<
   const progress = localProgress(beat ?? segment, second);
   const asset = pickAsset(segment, beat, second);
   const showHighlight = Boolean(beat?.highlight && beat?.hasHighlight);
+  const isGeneratedFallback = Boolean(beat?.isGeneratedFallback || beat?.assetStatus === 'generated-fallback');
 
   return (
     <div
@@ -180,20 +180,10 @@ const CardShell: React.FC<
               : 'linear-gradient(180deg, rgba(0,0,0,0.04), rgba(0,0,0,0.52))'
         }}
       />
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background:
-            'repeating-linear-gradient(0deg, rgba(255,255,255,0.14) 0px, rgba(255,255,255,0.14) 1px, transparent 2px, transparent 7px)',
-          opacity: 0.2,
-          mixBlendMode: 'overlay'
-        }}
-      />
-      {showSourceTag && <SourceTag segment={segment} beat={beat} />}
+      {showSourceTag && !isGeneratedFallback && <SourceTag segment={segment} beat={beat} />}
       {allowHighlight ? <HighlightEngine enabled={showHighlight} variant="box" /> : null}
       {children}
-      {showKeywordChips && <KeywordChips keywords={beat?.keywords ?? []} />}
+      {showKeywordChips && !isGeneratedFallback && <KeywordChips keywords={beat?.keywords ?? []} />}
     </div>
   );
 };
@@ -219,7 +209,248 @@ export const DiagramCard: React.FC<CardProps> = (props) => (
   <CardShell {...props} fit="contain" showSourceTag={false} showKeywordChips={false} />
 );
 
+const variantKeywords = (beat: VisualBeat | null, segment: Segment, limit = 4) =>
+  cleanAudienceKeywords(beat?.keywords ?? [segment.title], limit).map((keyword) => truncateText(keyword, 12));
+
+const VariantHeader: React.FC<{label: string; title: string; body: string; color: string}> = ({label, title, body, color}) => (
+  <>
+    <div
+      style={{
+        position: 'absolute',
+        left: 66,
+        right: 66,
+        top: 70,
+        color,
+        fontSize: 30,
+        lineHeight: 1.15,
+        fontWeight: 950
+      }}
+    >
+      {label}
+    </div>
+    <div
+      style={{
+        position: 'absolute',
+        left: 66,
+        right: 66,
+        top: 128,
+        maxHeight: 150,
+        overflow: 'hidden',
+        color: '#fff',
+        fontSize: 58,
+        lineHeight: 1.12,
+        fontWeight: 950,
+        wordBreak: 'break-word'
+      }}
+    >
+      {title}
+    </div>
+    <div
+      style={{
+        position: 'absolute',
+        left: 66,
+        right: 66,
+        top: 306,
+        maxHeight: 112,
+        overflow: 'hidden',
+        color: 'rgba(255,255,255,0.76)',
+        fontSize: 29,
+        lineHeight: 1.34,
+        fontWeight: 800,
+        wordBreak: 'break-word'
+      }}
+    >
+      {body}
+    </div>
+  </>
+);
+
+const ComparisonPanel: React.FC<CardProps> = ({beat, segment, second}) => {
+  const frame = useCurrentFrame();
+  const progress = localProgress(beat ?? segment, second);
+  const title = truncateText(pickAudienceTitle({beat, segment}), 34);
+  const body = truncateText(pickAudienceBody({beat, segment}), 78);
+  const keywords = variantKeywords(beat, segment, 3);
+  const panels = ['机会', '成本', '风险'].map((label, index) => ({
+    label,
+    value: keywords[index] ?? ['效率提升', '资源消耗', '边界控制'][index]
+  }));
+
+  return (
+    <div style={{...panelStyle, background: '#0a0b08', borderColor: 'rgba(245,180,0,0.54)'}}>
+      <div style={{position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(245,180,0,0.22), transparent 46%), radial-gradient(circle at 82% 22%, rgba(248,113,113,0.18), transparent 42%)'}} />
+      <VariantHeader label="三点对比" title={title} body={body} color="#f5b400" />
+      <div style={{position: 'absolute', left: 58, right: 58, bottom: 100, display: 'grid', gridTemplateColumns: '1fr', gap: 22}}>
+        {panels.map((panel, index) => {
+          const active = progress > index * 0.22;
+          return (
+            <div
+              key={panel.label}
+              style={{
+                minHeight: 118,
+                padding: '22px 26px',
+                display: 'grid',
+                gridTemplateColumns: '150px 1fr',
+                alignItems: 'center',
+                gap: 18,
+                border: '3px solid rgba(255,255,255,0.22)',
+                background: active ? 'rgba(245,180,0,0.18)' : 'rgba(255,255,255,0.06)',
+                transform: `translateX(${active ? 0 : -18}px)`,
+                opacity: active ? 1 : 0.52
+              }}
+            >
+              <div style={{color: '#f5b400', fontSize: 34, fontWeight: 950}}>{panel.label}</div>
+              <div style={{color: '#fff', fontSize: 38, lineHeight: 1.12, fontWeight: 950, wordBreak: 'break-word'}}>
+                {panel.value}
+              </div>
+              <div
+                style={{
+                  position: 'absolute',
+                  right: 24,
+                  top: 18,
+                  width: 96,
+                  height: 6,
+                  background: `linear-gradient(90deg, #f5b400 ${Math.min(100, progress * 120 + index * 12)}%, rgba(255,255,255,0.16) 0%)`
+                }}
+              />
+            </div>
+          );
+        })}
+      </div>
+      <div style={{position: 'absolute', right: 46, top: 48, color: 'rgba(255,255,255,0.16)', fontSize: 96, fontWeight: 950}}>
+        {Math.round(frame / 12) % 3 + 1}
+      </div>
+    </div>
+  );
+};
+
+const TimelineOrbit: React.FC<CardProps> = ({beat, segment, second}) => {
+  const frame = useCurrentFrame();
+  const progress = localProgress(beat ?? segment, second);
+  const title = truncateText(pickAudienceTitle({beat, segment}), 34);
+  const body = truncateText(pickAudienceBody({beat, segment}), 78);
+  const points = (variantKeywords(beat, segment, 4).length ? variantKeywords(beat, segment, 4) : ['出现', '扩散', '落地', '影响']);
+
+  return (
+    <div style={{...panelStyle, background: '#061014', borderColor: 'rgba(96,165,250,0.5)'}}>
+      <div style={{position: 'absolute', inset: 0, background: 'radial-gradient(circle at 50% 64%, rgba(96,165,250,0.22), transparent 50%), radial-gradient(circle at 20% 18%, rgba(94,234,212,0.16), transparent 42%)'}} />
+      <VariantHeader label="趋势时间线" title={title} body={body} color="#60a5fa" />
+      <svg width="100%" height="100%" viewBox="0 0 1080 1048" style={{position: 'absolute', inset: 0}}>
+        <path d="M150 710 C320 558 520 552 930 704" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="5" strokeDasharray="18 18" />
+        <path d="M150 710 C320 558 520 552 930 704" fill="none" stroke="#60a5fa" strokeWidth="12" strokeLinecap="round" strokeDasharray={`${progress * 880} 920`} />
+      </svg>
+      {points.map((point, index) => {
+        const x = [160, 382, 658, 914][index] ?? 540;
+        const y = [710, 594, 592, 704][index] ?? 650;
+        const active = progress > index / points.length;
+        return (
+          <div key={`${point}-${index}`} style={{position: 'absolute', left: x, top: y, transform: `translate(-50%, -50%) rotate(${Math.sin(frame / 18 + index) * 3}deg)`}}>
+            <div style={{width: 38, height: 38, borderRadius: 99, background: active ? '#60a5fa' : 'rgba(255,255,255,0.24)', boxShadow: active ? '0 0 34px rgba(96,165,250,0.5)' : 'none'}} />
+            <div style={{marginTop: 18, width: 190, color: '#fff', fontSize: 27, lineHeight: 1.14, fontWeight: 900, textAlign: 'center', wordBreak: 'break-word'}}>
+              {point}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+const SignalStack: React.FC<CardProps> = ({beat, segment, second}) => {
+  const frame = useCurrentFrame();
+  const progress = localProgress(beat ?? segment, second);
+  const title = truncateText(pickAudienceTitle({beat, segment}), 34);
+  const body = truncateText(pickAudienceBody({beat, segment}), 78);
+  const layers = (variantKeywords(beat, segment, 5).length ? variantKeywords(beat, segment, 5) : ['模型', '工具', '流程', '成本', '边界']);
+
+  return (
+    <div style={{...panelStyle, background: '#090811', borderColor: 'rgba(167,139,250,0.52)'}}>
+      <div style={{position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(167,139,250,0.18), transparent 60%), radial-gradient(circle at 78% 74%, rgba(245,180,0,0.16), transparent 48%)'}} />
+      <VariantHeader label="信号堆叠" title={title} body={body} color="#a78bfa" />
+      <div style={{position: 'absolute', left: 104, right: 104, bottom: 92, display: 'flex', flexDirection: 'column-reverse', gap: 16}}>
+        {layers.map((layer, index) => {
+          const active = progress > index / (layers.length + 1);
+          return (
+            <div
+              key={`${layer}-${index}`}
+              style={{
+                height: 72,
+                padding: '0 24px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                color: '#fff',
+                fontSize: 30,
+                fontWeight: 950,
+                background: active ? 'rgba(167,139,250,0.3)' : 'rgba(255,255,255,0.07)',
+                border: '2px solid rgba(167,139,250,0.5)',
+                transform: `translateX(${Math.sin(frame / 16 + index) * 8}px) scaleX(${active ? 1 : 0.92})`,
+                transformOrigin: 'left center'
+              }}
+            >
+              <span>{layer}</span>
+              <span style={{color: '#a78bfa'}}>{String(index + 1).padStart(2, '0')}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+const SummaryMatrix: React.FC<CardProps> = ({beat, segment, second}) => {
+  const progress = localProgress(beat ?? segment, second);
+  const title = truncateText(pickAudienceTitle({beat, segment}), 32);
+  const body = truncateText(pickAudienceBody({beat, segment}), 76);
+  const keywords = variantKeywords(beat, segment, 4);
+  const cells = ['模型能力', '工具接入', '成本控制', '安全边界'].map((label, index) => ({
+    label,
+    value: keywords[index] ?? ['变强', '变深', '变贵', '变重要'][index]
+  }));
+
+  return (
+    <div style={{...panelStyle, background: '#07100c', borderColor: 'rgba(52,211,153,0.54)'}}>
+      <div style={{position: 'absolute', inset: 0, background: 'radial-gradient(circle at 22% 22%, rgba(52,211,153,0.18), transparent 42%), linear-gradient(135deg, transparent, rgba(245,180,0,0.1))'}} />
+      <VariantHeader label="总结矩阵" title={title} body={body} color="#34d399" />
+      <div style={{position: 'absolute', left: 72, right: 72, bottom: 94, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18}}>
+        {cells.map((cell, index) => {
+          const active = progress > index * 0.18;
+          return (
+            <div
+              key={cell.label}
+              style={{
+                height: 160,
+                padding: 22,
+                border: '3px solid rgba(52,211,153,0.58)',
+                background: active ? 'rgba(52,211,153,0.2)' : 'rgba(255,255,255,0.06)',
+                color: '#fff',
+                opacity: active ? 1 : 0.48
+              }}
+            >
+              <div style={{fontSize: 28, fontWeight: 900, color: '#34d399'}}>{cell.label}</div>
+              <div style={{marginTop: 22, fontSize: 40, lineHeight: 1.12, fontWeight: 950, wordBreak: 'break-word'}}>{cell.value}</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 export const MotionClip: React.FC<CardProps> = ({beat, segment, second}) => {
+  if (beat?.animationVariant === 'comparison_panel') {
+    return <ComparisonPanel beat={beat} segment={segment} second={second} />;
+  }
+  if (beat?.animationVariant === 'timeline_orbit') {
+    return <TimelineOrbit beat={beat} segment={segment} second={second} />;
+  }
+  if (beat?.animationVariant === 'signal_stack') {
+    return <SignalStack beat={beat} segment={segment} second={second} />;
+  }
+  if (beat?.animationVariant === 'summary_matrix') {
+    return <SummaryMatrix beat={beat} segment={segment} second={second} />;
+  }
+
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
   const progress = localProgress(beat ?? segment, second);
@@ -242,8 +473,7 @@ export const MotionClip: React.FC<CardProps> = ({beat, segment, second}) => {
           position: 'absolute',
           inset: 0,
           background:
-            'linear-gradient(rgba(255,255,255,0.11) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.11) 1px, transparent 1px), radial-gradient(circle at 50% 44%, rgba(245,180,0,0.18), transparent 48%)',
-          backgroundSize: '72px 72px, 72px 72px, 100% 100%'
+            'radial-gradient(circle at 24% 28%, rgba(245,180,0,0.22), rgba(245,180,0,0.06) 38%, rgba(0,0,0,0) 66%), radial-gradient(circle at 78% 68%, rgba(94,234,212,0.16), rgba(0,0,0,0) 58%)'
         }}
       />
       <div
@@ -382,6 +612,154 @@ export const MotionClip: React.FC<CardProps> = ({beat, segment, second}) => {
   );
 };
 
+export const DiagramMotion: React.FC<CardProps> = ({beat, segment, second}) => {
+  if (beat?.animationVariant === 'comparison_panel') {
+    return <ComparisonPanel beat={beat} segment={segment} second={second} />;
+  }
+  if (beat?.animationVariant === 'timeline_orbit') {
+    return <TimelineOrbit beat={beat} segment={segment} second={second} />;
+  }
+  if (beat?.animationVariant === 'signal_stack') {
+    return <SignalStack beat={beat} segment={segment} second={second} />;
+  }
+  if (beat?.animationVariant === 'summary_matrix') {
+    return <SummaryMatrix beat={beat} segment={segment} second={second} />;
+  }
+
+  const frame = useCurrentFrame();
+  const {fps} = useVideoConfig();
+  const progress = localProgress(beat ?? segment, second);
+  const title = truncateText(pickAudienceTitle({beat, segment}), 34);
+  const body = truncateText(pickAudienceBody({beat, segment}), 78);
+  const keywords = cleanAudienceKeywords(beat?.keywords ?? [segment.title], 4).map((keyword) => truncateText(keyword, 12));
+  const entrance = spring({
+    frame: Math.max(0, Math.round((second - (beat?.start ?? segment.start)) * fps)),
+    fps,
+    config: {damping: 18, stiffness: 105}
+  });
+  const flow = interpolate(progress, [0, 1], [0, 1], {easing: Easing.inOut(Easing.ease)});
+  const nodes = (keywords.length ? keywords : ['来源', '机制', '影响', '落点']).slice(0, 4);
+
+  return (
+    <div style={{...panelStyle, background: '#07100e', borderColor: 'rgba(94,234,212,0.52)'}}>
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background:
+            'radial-gradient(circle at 18% 20%, rgba(94,234,212,0.2), rgba(0,0,0,0) 42%), radial-gradient(circle at 82% 74%, rgba(245,180,0,0.18), rgba(0,0,0,0) 50%)'
+        }}
+      />
+      <svg width="100%" height="100%" viewBox="0 0 1080 1048" style={{position: 'absolute', inset: 0}}>
+        <defs>
+          <linearGradient id="diagramFlow" x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0%" stopColor="rgba(94,234,212,0.16)" />
+            <stop offset="55%" stopColor="rgba(94,234,212,0.88)" />
+            <stop offset="100%" stopColor="rgba(245,180,0,0.72)" />
+          </linearGradient>
+        </defs>
+        <path
+          d="M190 642 C330 520 440 520 540 642 S760 760 890 606"
+          fill="none"
+          stroke="url(#diagramFlow)"
+          strokeWidth="12"
+          strokeLinecap="round"
+          strokeDasharray={`${Math.max(80, flow * 760)} 900`}
+          opacity={0.9}
+        />
+        <path
+          d="M238 426 L842 426"
+          stroke="rgba(255,255,255,0.18)"
+          strokeWidth="5"
+          strokeLinecap="round"
+          strokeDasharray="18 22"
+          strokeDashoffset={-frame * 1.8}
+        />
+      </svg>
+      <div
+        style={{
+          position: 'absolute',
+          left: 66,
+          right: 66,
+          top: 70,
+          color: '#5eead4',
+          fontSize: 30,
+          lineHeight: 1.15,
+          fontWeight: 950
+        }}
+      >
+        结构图解
+      </div>
+      <div
+        style={{
+          position: 'absolute',
+          left: 66,
+          right: 66,
+          top: 128,
+          maxHeight: 150,
+          overflow: 'hidden',
+          color: '#ffffff',
+          fontSize: 58,
+          lineHeight: 1.12,
+          fontWeight: 950,
+          transform: `translateY(${interpolate(entrance, [0, 1], [18, 0])}px)`
+        }}
+      >
+        {title}
+      </div>
+      <div
+        style={{
+          position: 'absolute',
+          left: 66,
+          right: 66,
+          top: 304,
+          maxHeight: 112,
+          overflow: 'hidden',
+          color: 'rgba(255,255,255,0.76)',
+          fontSize: 29,
+          lineHeight: 1.34,
+          fontWeight: 800
+        }}
+      >
+        {body}
+      </div>
+      {nodes.map((keyword, index) => {
+        const x = [190, 424, 656, 890][index] ?? 540;
+        const y = [642, 520, 642, 606][index] ?? 620;
+        const active = progress > index / Math.max(1, nodes.length);
+        return (
+          <div
+            key={`${keyword}-${index}`}
+            style={{
+              position: 'absolute',
+              left: x,
+              top: y,
+              width: 190,
+              minHeight: 92,
+              padding: '14px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              textAlign: 'center',
+              color: active ? '#07100e' : '#fff',
+              fontSize: 25,
+              lineHeight: 1.16,
+              fontWeight: 950,
+              wordBreak: 'break-word',
+              border: '3px solid rgba(94,234,212,0.82)',
+              background: active ? 'rgba(94,234,212,0.92)' : 'rgba(0,0,0,0.66)',
+              boxShadow: active ? '0 0 34px rgba(94,234,212,0.36)' : '0 12px 42px rgba(0,0,0,0.36)',
+              transform: `translate(-50%, -50%) scale(${interpolate(entrance, [0, 1], [0.9, 1])})`
+            }}
+          >
+            {keyword}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 export const KeywordPunch: React.FC<CardProps> = ({beat, segment, second}) => {
   const keywords = cleanAudienceKeywords(beat?.keywords ?? [segment.title], 2);
   const headline = (keywords.length ? keywords : [pickAudienceTitle({beat, segment})]).map((keyword) => truncateText(keyword, 14)).join(' / ');
@@ -395,8 +773,7 @@ export const KeywordPunch: React.FC<CardProps> = ({beat, segment, second}) => {
           position: 'absolute',
           inset: 0,
           background:
-            'linear-gradient(rgba(0,0,0,0.16) 2px, transparent 2px), linear-gradient(90deg, rgba(0,0,0,0.16) 2px, transparent 2px)',
-          backgroundSize: '92px 92px'
+            'radial-gradient(circle at 24% 22%, rgba(255,255,255,0.28), rgba(255,255,255,0) 42%), radial-gradient(circle at 78% 76%, rgba(0,0,0,0.18), rgba(0,0,0,0) 56%)'
         }}
       />
       <div
@@ -473,7 +850,7 @@ export const VisualStage: React.FC<CardProps> = (props) => {
     case 'remotion_motion_clip':
       return <MotionClip {...props} />;
     case 'remotion_diagram':
-      return <DiagramCard {...props} />;
+      return <DiagramMotion {...props} />;
     case 'yellow_opinion_card':
       return <KeywordPunch {...props} />;
     default:

@@ -15,7 +15,18 @@
 
 ## 正确生产顺序
 
-### 1. 先生成口播文案
+口播文案应在五日筛选之后生成并提交给用户确认。素材聚合和素材捕获放在最终口播、MP3 和 SRT 之后执行，这样画面节奏才能跟真实配音一致。
+
+### 1. 新闻抓取与五日筛选
+
+```bash
+npm run news:daily -- --date YYYY-MM-DD
+npm run news:select -- --date YYYY-MM-DD
+```
+
+五日筛选决定本期讲哪几条新闻。
+
+### 2. 生成并确认口播文案
 
 Codex 输出两份内容：
 
@@ -27,11 +38,11 @@ Codex 输出两份内容：
 | 段落 | 锚点句 | 画面主题 |
 | --- | --- | --- |
 | intro | 这几天科技圈最值得看的 | 本期主线 |
-| news_1 | 第一件事，英伟达H200 | H200 新闻源 |
-| news_2 | 第二件事，AI硬件公司Cerebras | Cerebras 新闻源 |
+| news_1 | 第一件事，OpenAI 推出 Deployment Company | OpenAI 企业部署 |
+| news_2 | 第二件事，台积电上调芯片市场展望 | AI 算力账单 |
 | outro | 总结一下 | 总结页 |
 
-### 2. 你生成最终配音
+### 3. 你生成最终配音
 
 你把最终配音放入：
 
@@ -46,20 +57,6 @@ public/audio/YYYY-MM-DD-voiceover.mp3
 ```
 
 后续所有时间都以这个音频为准。
-
-### 3. 测量配音真实时长
-
-运行：
-
-```bash
-npm run validate:timeline
-```
-
-如果视频数据还没对齐，校验会报：
-
-- 配音时长与总时长不一致
-- 字幕结束时间与总时长不一致
-- 画面段落结束时间与总时长不一致
 
 ### 4. 对最终配音做转写或强制对齐
 
@@ -77,7 +74,16 @@ npm run validate:timeline
 data/subtitles/YYYY-MM-DD-aligned.srt
 ```
 
-### 5. 从字幕锚点生成画面时间轴
+### 5. 资产聚合和素材捕获
+
+```bash
+npm run news:aggregate:assets -- --date YYYY-MM-DD
+npm run capture:daily-assets -- YYYY-MM-DD
+```
+
+素材捕获要读取已确认口播稿；最终 SRT 已存在时，后续 `build:episode` 会按真实字幕时间重新分配 visual beats。
+
+### 6. 从字幕锚点生成画面时间轴
 
 画面段落不能手写固定秒数，而要从字幕中找锚点句：
 
@@ -87,16 +93,16 @@ data/subtitles/YYYY-MM-DD-aligned.srt
 
 这样画面切换会天然跟配音同步。
 
-### 6. 生成视频数据
+### 7. 生成视频数据
 
-`src/videoData.ts` 中必须满足：
+`src/data/currentEpisode.ts` 中必须满足：
 
 - `durationSeconds` 等于最终配音真实时长。
 - `durationInFrames = Math.ceil(durationSeconds * fps)`。
 - `captions` 来自最终音频识别后的字幕。
-- `segments` 来自字幕锚点，而不是人工估算。
+- `segments` 和 `visualBeats` 来自字幕锚点，而不是人工估算。
 
-### 7. 渲染前校验
+### 8. 渲染前校验
 
 渲染前必须运行：
 
@@ -106,7 +112,7 @@ npm run validate:timeline
 
 只有通过后再渲染。
 
-### 8. 渲染后校验
+### 9. 渲染后校验
 
 渲染完整视频后运行：
 
@@ -142,16 +148,17 @@ npm run validate:timeline:video
 
 ```mermaid
 flowchart TD
-  A["Codex 生成口播文案"] --> B["人工复制到配音网站生成音频"]
-  B --> C["放入 data/audio 和 public/audio"]
-  C --> D["读取音频真实时长"]
-  D --> E["对最终音频做 ASR/导出 SRT"]
-  E --> F["用锚点句生成画面时间轴"]
-  F --> G["抓取新闻源真实素材"]
-  G --> H["运行 validate:timeline"]
-  H --> I["Remotion 渲染完整视频"]
-  I --> J["运行 validate:timeline:video"]
-  J --> K["人工抽查发布版"]
+  A["新闻抓取"] --> B["五日筛选"]
+  B --> C["生成并确认口播文案"]
+  C --> D["人工生成最终配音"]
+  D --> E["放入 data/audio 和 public/audio"]
+  E --> F["对最终音频做 ASR/导出 SRT"]
+  F --> G["资产聚合和素材捕获"]
+  G --> H["build:episode 重建时间轴"]
+  H --> I["运行 validate:timeline"]
+  I --> J["Remotion 渲染完整视频"]
+  J --> K["运行 validate:timeline:video"]
+  K --> L["人工抽查发布版"]
 ```
 
 ## 对当前项目的改进方向
@@ -165,7 +172,7 @@ flowchart TD
 
 2. `build:episode`
    - 读取某一期配置。
-   - 自动复制音频、读取字幕、更新 `videoData.ts`。
+   - 自动复制音频、读取字幕、更新 `src/data/currentEpisode.ts`。
    - 校验通过后才允许渲染。
 
 这样你只需要负责确认文案和下载最终配音，其余同步步骤由项目自动完成。

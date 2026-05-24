@@ -1,11 +1,12 @@
 # 成片生产质检清单
 
-这份清单用于后半段生产：有最终配音和 SRT 后，Codex 负责找素材、生成 visual beats、渲染成片并审查质量。
+这份清单用于后半段生产：五日筛选和口播确认后，有最终配音和 SRT，Codex 负责找素材、生成 visual beats、渲染成片并审查质量。
 
 ## 生产边界
 
 后半段必须从以下文件开始：
 
+- `data/video-scripts/YYYY-MM-DD-voiceover.md`
 - `data/audio/YYYY-MM-DD-voiceover.mp3`
 - `public/audio/YYYY-MM-DD-voiceover.mp3`
 - `data/subtitles/YYYY-MM-DD-aligned.srt`
@@ -32,6 +33,7 @@ npm run validate:timeline
 - 观众版数据不得包含 `risk`、`审核提醒` 或内部制作提示。
 - 每个 visual beat 必须包含 `assetFunction`，用于驱动组件库选择。
 - `remotion_motion_clip` 和 `yellow_opinion_card` 属于组件渲染素材，可以没有外部 asset 文件；其他素材函数仍必须有可读取素材路径。
+- fallback 卡不得叠加全局来源角标、关键词 chips 或重复正文。
 
 ## 素材检查
 
@@ -87,6 +89,8 @@ npm run validate:timeline
 - 素材长时间空白、黑屏、加载失败。
 - 重复使用和当前句无关的素材。
 - 同一 URL 或同一域名被过量重复分配。
+- fallback 卡冒充真实证据截图。
+- Remotion motion clip 统计口径和最终 episode 不一致。
 - 同一种 `visualRole` 连续超过 2 次。
 - 每 15 秒没有真实世界素材。
 - 每 20 秒没有结构拆解、证据、产品 UI 或关键判断支撑。

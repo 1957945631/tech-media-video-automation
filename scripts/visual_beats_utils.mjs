@@ -3,7 +3,7 @@ const visualRoles = new Set(['evidence', 'product_ui', 'person_or_company', 'bro
 const transitions = new Set(['cut', 'flash', 'glitch', 'zoom', 'scan']);
 const realWorldRoles = new Set(['evidence', 'product_ui', 'person_or_company', 'broll']);
 const explanatoryRoles = new Set(['concept', 'motion', 'diagram', 'evidence', 'keyword', 'product_ui']);
-const componentRenderedAssetFunctions = new Set(['yellow_opinion_card', 'remotion_motion_clip']);
+const componentRenderedAssetFunctions = new Set(['yellow_opinion_card', 'remotion_motion_clip', 'remotion_diagram']);
 
 export const isVisualRhythmProblem = (problem) =>
   /role repetition|real-world asset gap|diagram\/(?:opinion|keyword) gap|concept visuals continue|abstract visuals continue|more than 2 times/i.test(problem);

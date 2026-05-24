@@ -28,10 +28,9 @@ const durationLabel = (data: VideoData) => {
 
 const Background: React.FC = () => {
   const frame = useCurrentFrame();
-  const drift = interpolate(frame % 240, [0, 240], [0, -82], {
+  const drift = interpolate(frame % 240, [0, 240], [0, 34], {
     easing: Easing.inOut(Easing.ease)
   });
-  const pulse = interpolate(Math.sin(frame / 16), [-1, 1], [0.18, 0.34]);
 
   return (
     <AbsoluteFill style={{background: '#050505', overflow: 'hidden'}}>
@@ -46,26 +45,29 @@ const Background: React.FC = () => {
       <div
         style={{
           position: 'absolute',
-          left: -360,
-          right: -360,
-          top: 130,
-          height: 1180,
+          left: -120,
+          top: 180 + drift,
+          width: 680,
+          height: 680,
+          borderRadius: 999,
           background:
-            'linear-gradient(rgba(255,255,255,0.14) 2px, transparent 2px), linear-gradient(90deg, rgba(255,255,255,0.14) 2px, transparent 2px)',
-          backgroundSize: '88px 88px',
-          transform: `perspective(620px) rotateX(56deg) translateY(${drift}px)`,
-          transformOrigin: 'center top',
-          opacity: 0.52
+            'radial-gradient(circle at 34% 34%, rgba(245,180,0,0.26), rgba(245,180,0,0.08) 42%, rgba(245,180,0,0) 70%)',
+          filter: 'blur(8px)',
+          opacity: 0.9
         }}
       />
       <div
         style={{
           position: 'absolute',
-          inset: 0,
+          right: -180,
+          bottom: 280 - drift,
+          width: 760,
+          height: 760,
+          borderRadius: 999,
           background:
-            'repeating-linear-gradient(0deg, rgba(255,255,255,0.12) 0px, rgba(255,255,255,0.12) 1px, transparent 2px, transparent 6px)',
-          opacity: pulse,
-          mixBlendMode: 'screen'
+            'radial-gradient(circle at 52% 48%, rgba(94,234,212,0.16), rgba(96,165,250,0.08) 46%, rgba(96,165,250,0) 72%)',
+          filter: 'blur(10px)',
+          opacity: 0.82
         }}
       />
     </AbsoluteFill>

@@ -14,6 +14,9 @@ export type VisualRole = 'evidence' | 'product_ui' | 'person_or_company' | 'brol
 
 export type TransitionName = 'cut' | 'flash' | 'glitch' | 'zoom' | 'scan';
 
+export type AssetStatus = 'captured' | 'generated-fallback' | 'component-rendered';
+export type AnimationVariant = 'flow_map' | 'comparison_panel' | 'timeline_orbit' | 'signal_stack' | 'summary_matrix';
+
 export type Segment = {
   id: string;
   start: number;
@@ -50,8 +53,14 @@ export type VisualBeat = {
   assetQuery?: string[];
   overlayTitle: string;
   transitionOut: TransitionName;
+  animationVariant?: AnimationVariant;
   highlight?: unknown;
   hasHighlight?: boolean;
+  assetStatus?: AssetStatus;
+  assetMediaType?: string;
+  assetSourceName?: string;
+  assetSourceUrl?: string;
+  isGeneratedFallback?: boolean;
   assets: string[];
 };
 

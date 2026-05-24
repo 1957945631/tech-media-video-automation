@@ -24,6 +24,15 @@ const visualBeatsPath = path.join(dataAssetDir, 'visual-beats.json');
 const selectionPath = path.join(root, 'data', 'selected', `${date}-selection.json`);
 const voiceoverPath = path.join(root, 'data', 'video-scripts', `${date}-voiceover.md`);
 const skillResearchPath = path.join(dataAssetDir, 'news-aggregator-research.json');
+const componentRenderedAssetFunctions = new Set(['remotion_motion_clip', 'remotion_diagram']);
+const promotableCaptureFunctions = new Set(['real_broll', 'industry_broll', 'commercial_broll', 'product_ui', 'company_person']);
+
+const requiredProductionInputs = [
+  path.join(root, 'data', 'video-scripts', `${date}-voiceover.md`),
+  path.join(root, 'data', 'audio', `${date}-voiceover.mp3`),
+  path.join(root, 'public', 'audio', `${date}-voiceover.mp3`),
+  path.join(root, 'data', 'subtitles', `${date}-aligned.srt`)
+];
 
 const escapeHtml = (value) =>
   String(value ?? '')
@@ -71,6 +80,23 @@ const readText = async (file, fallback = '') => {
   }
 };
 
+const ensureProductionInputs = async () => {
+  const missing = [];
+  for (const file of requiredProductionInputs) {
+    try {
+      await fs.access(file);
+    } catch {
+      missing.push(path.relative(root, file).replaceAll(path.sep, '/'));
+    }
+  }
+
+  if (missing.length) {
+    throw new Error(
+      `Missing production inputs before asset capture:\n${missing.join('\n')}\nRun five-day selection, confirm voiceover script, then add final MP3/SRT before capture:daily-assets.`
+    );
+  }
+};
+
 const cleanGeneratedAssetDir = async (dir) => {
   await fs.mkdir(dir, {recursive: true});
   const entries = await fs.readdir(dir, {withFileTypes: true});
@@ -98,15 +124,13 @@ const buildSourcePools = async (selection) => {
       title: item.title,
       url: item.source_url
     }));
-  const baseSources = [...selectedSources, ...skillResearchSources];
-
   return mergeResearchSourcesIntoPools({
-    evidence_screenshot: baseSources,
-    company_person: baseSources,
-    product_ui: baseSources,
-    real_broll: baseSources,
-    industry_broll: baseSources,
-    commercial_broll: baseSources
+    evidence_screenshot: selectedSources,
+    company_person: [],
+    product_ui: [],
+    real_broll: [],
+    industry_broll: [],
+    commercial_broll: []
   }, skillResearchSources);
 };
 
@@ -145,15 +169,13 @@ const cardShell = ({kicker, title, body, chips = [], source = '', tone = 'dark',
       background: ${tone === 'yellow' ? '#f5b400' : '#050505'};
       color: ${tone === 'yellow' ? '#080808' : '#fff'};
     }
-    .grid {
+    .ambient {
       position: absolute;
       inset: 0;
       background:
-        linear-gradient(${tone === 'yellow' ? 'rgba(0,0,0,.16)' : 'rgba(255,255,255,.12)'} 2px, transparent 2px),
-        linear-gradient(90deg, ${tone === 'yellow' ? 'rgba(0,0,0,.16)' : 'rgba(255,255,255,.12)'} 2px, transparent 2px);
-      background-size: 92px 92px;
-      transform: ${diagram ? 'none' : 'perspective(560px) rotateX(54deg) translateY(-120px) scale(1.3)'};
-      opacity: .42;
+        radial-gradient(circle at 18% 18%, ${tone === 'yellow' ? 'rgba(255,255,255,.3)' : 'rgba(245,180,0,.18)'}, transparent 34%),
+        radial-gradient(circle at 82% 70%, ${tone === 'yellow' ? 'rgba(0,0,0,.16)' : 'rgba(94,234,212,.12)'}, transparent 38%);
+      opacity: .72;
     }
     .panel {
       position: absolute;
@@ -251,7 +273,7 @@ const cardShell = ({kicker, title, body, chips = [], source = '', tone = 'dark',
   </style>
 </head>
 <body>
-  <div class="grid"></div>
+  <div class="ambient"></div>
   <div class="panel">
     <div class="kicker">${escapeHtml(kicker)}</div>
     <h1>${escapeHtml(cleanTitle)}</h1>
@@ -382,43 +404,81 @@ const fallbackHtml = (assetFunction, beat, source) => {
       kicker: '\u8d8b\u52bf\u753b\u9762',
       title,
       body,
-      chips,
+      chips: [],
       source: ''
     });
   }
 
   return cardShell({
-    kicker: '\u80cc\u666f\u8865\u5145',
+    kicker: '内容补充',
     title,
     body,
-    chips,
-    source
+    chips: [],
+    source: ''
   });
 };
 
+const createComponentAsset = ({beat, assetFunction, index, matchReason = 'component-rendered semantic visual'}) => {
+  const key = `${String(index + 1).padStart(3, '0')}-${slugify(beat.id)}-${assetFunction}`;
+  const sourceCategory = assetFunction === 'remotion_diagram' ? 'remotion-diagram' : 'remotion-motion';
+  return {
+    id: key,
+    beatId: beat.id,
+    assetFunction,
+    visualRole: beat.visualRole,
+    path: null,
+    source_url: null,
+    source_name: 'Remotion component',
+    assetStatus: 'component-rendered',
+    mediaType: 'remotion_component',
+    isRealWorldMaterial: false,
+    isGeneratedFallback: false,
+    annotation: false,
+    hasHighlight: false,
+    matchReason,
+    matchedKeywords: cleanAudienceKeywords(beat.keywords ?? [], 4),
+    meaningfulMatches: [],
+    matchStrength: 'component',
+    sourceCategory,
+    status: 'component-rendered'
+  };
+};
+
+const promoteFallbackAssetFunction = (assetFunction, beat) => {
+  if (assetFunction === 'product_ui' || beat.visualRole === 'diagram') {
+    return 'remotion_diagram';
+  }
+  return 'remotion_motion_clip';
+};
+
+const shouldPromoteToMotionComponent = ({assetFunction, sourceChoice, capture}) => {
+  if (!promotableCaptureFunctions.has(assetFunction)) {
+    return false;
+  }
+  return Boolean(sourceChoice?.fallback || sourceChoice?.matchStrength === 'weak' || (capture && !capture.ok));
+};
+
 const createAsset = async ({context, pools, usage, beat, assetFunction, index, forcedSource = null}) => {
-  if (assetFunction === 'remotion_motion_clip') {
-    const key = `${String(index + 1).padStart(3, '0')}-${slugify(beat.id)}-${assetFunction}`;
-    return {
-      id: key,
-      beatId: beat.id,
+  if (componentRenderedAssetFunctions.has(assetFunction)) {
+    return createComponentAsset({
+      beat,
       assetFunction,
-      visualRole: beat.visualRole,
-      path: null,
-      source_url: null,
-      source_name: 'Remotion component',
-      mediaType: 'remotion_component',
-      isRealWorldMaterial: false,
-      annotation: false,
-      hasHighlight: false,
-      matchReason: 'component-rendered semantic motion clip',
-      matchedKeywords: cleanAudienceKeywords(beat.keywords ?? [], 4),
-      sourceCategory: 'remotion-motion',
-      status: 'component-rendered'
-    };
+      index,
+      matchReason: assetFunction === 'remotion_diagram' ? 'component-rendered semantic diagram' : 'component-rendered semantic motion clip'
+    });
   }
 
   const sourceChoice = forcedSource ? {source: forcedSource, matchedKeywords: [], matchReason: 'forced source', fallback: false} : chooseSource(pools, assetFunction, beat, usage);
+  if (shouldPromoteToMotionComponent({assetFunction, sourceChoice, capture: null})) {
+    const promotedFunction = promoteFallbackAssetFunction(assetFunction, beat);
+    return createComponentAsset({
+      beat,
+      assetFunction: promotedFunction,
+      index,
+      matchReason: `promoted from ${assetFunction}: ${sourceChoice.matchReason}`
+    });
+  }
+
   const source = sourceChoice.source;
   const directMediaExtension = ['image', 'video'].includes(source?.mediaType) ? mediaExtensionFor(source) : '.png';
   const key = `${String(index + 1).padStart(3, '0')}-${slugify(beat.id)}-${assetFunction}`;
@@ -443,6 +503,16 @@ const createAsset = async ({context, pools, usage, beat, assetFunction, index, f
   }
 
   if (!capture?.ok) {
+    if (shouldPromoteToMotionComponent({assetFunction, sourceChoice, capture})) {
+      const promotedFunction = promoteFallbackAssetFunction(assetFunction, beat);
+      return createComponentAsset({
+        beat,
+        assetFunction: promotedFunction,
+        index,
+        matchReason: `promoted from ${assetFunction}: ${capture?.error ?? sourceChoice.matchReason}`
+      });
+    }
+
     await renderHtmlPng({
       context,
       html: fallbackHtml(assetFunction, beat, source ? `${source.name} | ${source.url}` : ''),
@@ -460,11 +530,15 @@ const createAsset = async ({context, pools, usage, beat, assetFunction, index, f
     source_url: source?.url ?? null,
     source_name: source?.name ?? null,
     mediaType: capture?.mediaType ?? source?.mediaType ?? (capture?.ok ? 'webpage' : 'generated_card'),
+    assetStatus: capture?.ok ? 'captured' : 'generated-fallback',
     isRealWorldMaterial: Boolean(capture?.ok),
+    isGeneratedFallback: !capture?.ok,
     annotation,
     hasHighlight: false,
     matchReason: sourceChoice.matchReason,
     matchedKeywords: sourceChoice.matchedKeywords,
+    meaningfulMatches: sourceChoice.meaningfulMatches ?? [],
+    matchStrength: sourceChoice.matchStrength ?? (capture?.ok ? 'strong' : 'weak'),
     sourceCategory: sourceChoice.fallback ? 'fallback-card' : assetFunction,
     status: capture?.ok ? 'captured' : 'generated-fallback',
     error: capture?.error
@@ -472,6 +546,7 @@ const createAsset = async ({context, pools, usage, beat, assetFunction, index, f
 };
 
 const main = async () => {
+  await ensureProductionInputs();
   await cleanGeneratedAssetDir(dataAssetDir);
   await cleanGeneratedAssetDir(publicAssetDir);
 
@@ -493,7 +568,8 @@ const main = async () => {
   const visualBeats = [];
 
   for (const [index, beat] of visualBeatPlan.entries()) {
-    const primaryFunction = assignAssetFunction(beat);
+    const assignedFunction = assignAssetFunction(beat);
+    const primaryFunction = assignedFunction === 'abstract_tech' ? 'remotion_motion_clip' : assignedFunction;
     const assets = [await createAsset({context, pools, usage, beat, assetFunction: primaryFunction, index})];
     allAssets.push(...assets);
     for (const asset of assets) {
@@ -510,7 +586,13 @@ const main = async () => {
 
     visualBeats.push({
       ...beat,
-      assetFunction: primaryFunction,
+      assetFunction: assets[0]?.assetFunction ?? primaryFunction,
+      plannedAssetFunction: primaryFunction,
+      assetStatus: assets[0]?.assetStatus,
+      assetMediaType: assets[0]?.mediaType,
+      assetSourceName: assets[0]?.source_name,
+      assetSourceUrl: assets[0]?.source_url,
+      isGeneratedFallback: assets[0]?.isGeneratedFallback,
       assets: assets.map((asset) => asset.path).filter(Boolean)
     });
   }
@@ -518,6 +600,13 @@ const main = async () => {
   await browser.close();
 
   const inventory = countAssetInventory(allAssets);
+  const qualitySummary = {
+    captured: allAssets.filter((asset) => asset.assetStatus === 'captured').length,
+    componentRendered: allAssets.filter((asset) => asset.assetStatus === 'component-rendered').length,
+    generatedFallback: allAssets.filter((asset) => asset.assetStatus === 'generated-fallback').length,
+    weakMatches: allAssets.filter((asset) => asset.matchStrength === 'weak').length,
+    captureFailures: allAssets.filter((asset) => asset.error).length
+  };
   const inventoryProblems = [
     ...validateAssetInventory(inventory).filter((problem) => !problem.includes('above maximum')),
     ...validateSourceUsage(allAssets)
@@ -527,6 +616,7 @@ const main = async () => {
     generated_at: new Date().toISOString(),
     source_selection: path.relative(root, selectionPath).replaceAll(path.sep, '/'),
     inventory,
+    qualitySummary,
     inventoryProblems,
     assets: allAssets,
     storyPlan
@@ -534,9 +624,9 @@ const main = async () => {
 
   await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
   await fs.writeFile(visualBeatsPath, `${JSON.stringify({date, generated_at: manifest.generated_at, visualBeats}, null, 2)}\n`, 'utf8');
-  console.log(JSON.stringify({date, inventory, inventoryProblems, asset_count: allAssets.length}, null, 2));
+  console.log(JSON.stringify({date, inventory, qualitySummary, inventoryProblems, asset_count: allAssets.length}, null, 2));
 
-  const blockingProblems = inventoryProblems.filter((problem) => !problem.includes('below minimum'));
+  const blockingProblems = inventoryProblems;
 
   if (blockingProblems.length) {
     process.exitCode = 1;

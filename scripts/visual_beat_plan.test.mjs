@@ -115,6 +115,31 @@ test('buildVisualPlan places user scene before takeaway to avoid long non-real s
   assert.ok(userSceneIndex < takeawayIndex);
 });
 
+test('buildVisualPlan assigns infographic animation variants by beat semantics', () => {
+  const plan = buildVisualPlan({selection: sampleSelection, voiceoverText: sampleVoiceover, date: '2026-05-19'});
+  const beatBySuffix = (suffix) => plan.visualBeatPlan.find((beat) => beat.segmentId === 'news_1' && beat.id.endsWith(suffix));
+
+  assert.equal(beatBySuffix('-explain').animationVariant, 'flow_map');
+  assert.equal(beatBySuffix('-impact').animationVariant, 'comparison_panel');
+  assert.equal(beatBySuffix('-real-world-context').animationVariant, 'timeline_orbit');
+  assert.equal(beatBySuffix('-concept-visual').animationVariant, 'signal_stack');
+  assert.equal(plan.visualBeatPlan.find((beat) => beat.id === 'outro-mainline').animationVariant, 'summary_matrix');
+});
+
+test('buildVisualPlan avoids repeating the same Remotion animation variant on adjacent component beats', () => {
+  const plan = buildVisualPlan({selection: sampleSelection, voiceoverText: sampleVoiceover, date: '2026-05-19'});
+  const componentBeats = plan.visualBeatPlan.filter((beat) =>
+    ['diagram', 'broll', 'concept', 'product_ui'].includes(beat.visualRole)
+  );
+
+  for (let index = 1; index < componentBeats.length; index += 1) {
+    assert.notEqual(
+      `${componentBeats[index - 1].animationVariant}:${componentBeats[index].animationVariant}`,
+      `${componentBeats[index].animationVariant}:${componentBeats[index].animationVariant}`
+    );
+  }
+});
+
 test('chooseBestSource prefers semantically matched sources and reports why it matched', () => {
   const beat = {
     id: 'news-1-evidence',
@@ -134,6 +159,45 @@ test('chooseBestSource prefers semantically matched sources and reports why it m
   assert.equal(chosen.source.url, 'https://example.com/acme-phone');
   assert.ok(chosen.matchedKeywords.includes('acme'));
   assert.match(chosen.matchReason, /semantic match/i);
+  assert.equal(chosen.matchStrength, 'strong');
+});
+
+test('chooseBestSource rejects generic one-word matches for product and b-roll beats', () => {
+  const productBeat = {
+    id: 'product-impact',
+    visualRole: 'product_ui',
+    subject: 'Claude Code token costs',
+    action: 'show product impact',
+    concept: 'cost pressure for coding agents',
+    overlayTitle: 'impact',
+    keywords: ['token'],
+    assetQuery: ['Claude Code token impact product industry']
+  };
+  const productChoice = chooseBestSource([
+    {name: 'Product Hunt', title: 'SuprSend product launch', url: 'https://www.producthunt.com/products/suprsend'}
+  ], productBeat);
+
+  assert.equal(productChoice.source, null);
+  assert.equal(productChoice.fallback, true);
+  assert.equal(productChoice.matchStrength, 'weak');
+
+  const brollBeat = {
+    id: 'broll-context',
+    visualRole: 'broll',
+    subject: 'GPT-5.5',
+    action: 'connect real world scene',
+    concept: 'big model capability shift',
+    overlayTitle: 'industry scene',
+    keywords: ['big'],
+    assetQuery: ['GPT-5.5 real world industry scene']
+  };
+  const brollChoice = chooseBestSource([
+    {name: 'AI to ROI', title: 'AI-native professional services big story', url: 'https://ai2roi.substack.com/p/story'}
+  ], brollBeat);
+
+  assert.equal(brollChoice.source, null);
+  assert.equal(brollChoice.fallback, true);
+  assert.equal(brollChoice.matchStrength, 'weak');
 });
 
 test('validateSourceUsage flags excessive reuse of the same URL', () => {
@@ -141,7 +205,17 @@ test('validateSourceUsage flags excessive reuse of the same URL', () => {
     {source_url: 'https://example.com/a'},
     {source_url: 'https://example.com/a'},
     {source_url: 'https://example.com/a'}
-  ], {maxPerUrl: 2});
+  ], {maxPerUrl: 2, maxPerDomain: 3});
 
   assert.deepEqual(problems, ['source URL https://example.com/a is used 3 times, above maximum 2']);
+});
+
+test('validateSourceUsage uses strict non-evidence domain limits by default', () => {
+  const problems = validateSourceUsage([
+    {assetFunction: 'real_broll', source_url: 'https://github.com/a'},
+    {assetFunction: 'product_ui', source_url: 'https://github.com/b'},
+    {assetFunction: 'industry_broll', source_url: 'https://github.com/c'}
+  ]);
+
+  assert.deepEqual(problems, ['source domain reused 3 times: github.com']);
 });

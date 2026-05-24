@@ -30,6 +30,27 @@ const stopWords = new Set([
   '2025'
 ]);
 
+const genericMatchWords = new Set([
+  'ai',
+  'big',
+  'new',
+  'news',
+  'product',
+  'industry',
+  'impact',
+  'scene',
+  'real',
+  'world',
+  'technology',
+  'tech',
+  'token',
+  'one',
+  'useful',
+  'thing',
+  'official',
+  'trending'
+]);
+
 const asArray = (value) => (Array.isArray(value) ? value : []);
 
 const compact = (value, limit = 36) => {
@@ -115,6 +136,34 @@ const storyFromSelectionItem = (item, index) => {
   };
 };
 
+const animationVariantFor = ({id = '', segmentId = '', visualRole = '', action = ''}) => {
+  if (segmentId === 'outro') {
+    if (id.includes('mainline')) {
+      return 'summary_matrix';
+    }
+    if (id.includes('impact')) {
+      return 'comparison_panel';
+    }
+    return visualRole === 'broll' ? 'timeline_orbit' : undefined;
+  }
+  if (visualRole === 'diagram') {
+    return 'flow_map';
+  }
+  if (visualRole === 'product_ui' || id.endsWith('-impact') || /说明/.test(action)) {
+    return 'comparison_panel';
+  }
+  if (id.endsWith('-transition-scene')) {
+    return 'signal_stack';
+  }
+  if (visualRole === 'broll') {
+    return 'timeline_orbit';
+  }
+  if (visualRole === 'concept') {
+    return 'signal_stack';
+  }
+  return undefined;
+};
+
 const makeBeat = ({id, segmentId, intent, subject, action, concept, visualRole, keywords, assetQuery, overlayTitle, transitionOut = 'cut'}) => ({
   id,
   segmentId,
@@ -127,7 +176,8 @@ const makeBeat = ({id, segmentId, intent, subject, action, concept, visualRole, 
   keywords: cleanAudienceKeywords(keywords, 12),
   assetQuery: asArray(assetQuery).map((query) => cleanAudienceText(query, subject)).filter(Boolean),
   overlayTitle: cleanAudienceText(overlayTitle, subject),
-  transitionOut
+  transitionOut,
+  animationVariant: animationVariantFor({id, segmentId, visualRole, action})
 });
 
 const buildStoryBeats = (story, index) => {
@@ -416,11 +466,51 @@ const domainOf = (url) => {
   }
 };
 
+const isMeaningfulMatch = (keyword) => {
+  const normalized = String(keyword ?? '').toLowerCase();
+  if (!normalized || stopWords.has(normalized) || genericMatchWords.has(normalized)) {
+    return false;
+  }
+  if (/^[a-z]+$/i.test(normalized) && normalized.length < 4) {
+    return false;
+  }
+  return true;
+};
+
+const minimumMatchStrengthFor = (beat) => {
+  if (beat.visualRole === 'evidence') {
+    return 'medium';
+  }
+  if (beat.visualRole === 'product_ui' || beat.visualRole === 'broll' || beat.visualRole === 'person_or_company') {
+    return 'strong';
+  }
+  return 'medium';
+};
+
+const strengthRank = {weak: 0, medium: 1, strong: 2};
+
+const classifyMatchStrength = ({beat, source, matchedKeywords, directUrlBoost}) => {
+  const meaningfulMatches = matchedKeywords.filter(isMeaningfulMatch);
+  const directUrlMatch = directUrlBoost > 0 || beat.assetQuery?.some((query) => String(query).includes(source.url));
+
+  if (directUrlMatch && beat.visualRole === 'evidence') {
+    return {matchStrength: 'strong', meaningfulMatches};
+  }
+  if (meaningfulMatches.length >= 2) {
+    return {matchStrength: 'strong', meaningfulMatches};
+  }
+  if (meaningfulMatches.length >= 1 && matchedKeywords.length >= 2) {
+    return {matchStrength: 'medium', meaningfulMatches};
+  }
+  return {matchStrength: 'weak', meaningfulMatches};
+};
+
 export const chooseBestSource = (sources, beat, options = {}) => {
   const usedUrls = options.usedUrls ?? new Map();
   const usedDomains = options.usedDomains ?? new Map();
-  const maxUrlUses = options.maxUrlUses ?? 2;
-  const maxDomainUses = options.maxDomainUses ?? 8;
+  const maxUrlUses = options.maxUrlUses ?? options.maxPerUrl ?? 1;
+  const maxDomainUses = options.maxDomainUses ?? options.maxPerDomain ?? 2;
+  const requiredStrength = options.requiredStrength ?? minimumMatchStrengthFor(beat);
   const keywords = extractKeywords([
     beat.subject,
     beat.action,
@@ -445,18 +535,21 @@ export const chooseBestSource = (sources, beat, options = {}) => {
     const domain = domainOf(source.url);
     const domainCount = domain ? usedDomains.get(domain) ?? 0 : 0;
     const directUrlBoost = beat.visualRole === 'evidence' && beat.assetQuery?.some((query) => String(query).includes(source.url)) ? 8 : 0;
-    const score = matchedKeywords.length * 3 + directUrlBoost - urlCount * 5 - domainCount * 2;
+    const {matchStrength, meaningfulMatches} = classifyMatchStrength({beat, source, matchedKeywords, directUrlBoost});
+    const score = meaningfulMatches.length * 5 + matchedKeywords.length + directUrlBoost - urlCount * 5 - domainCount * 3;
 
-    return {source, score, matchedKeywords, domain, urlCount, domainCount};
+    return {source, score, matchedKeywords, meaningfulMatches, matchStrength, domain, urlCount, domainCount};
   });
 
   scored.sort((a, b) => b.score - a.score);
-  const winner = scored.find((item) => item.score > 0);
+  const winner = scored.find((item) => item.score > 0 && strengthRank[item.matchStrength] >= strengthRank[requiredStrength]);
 
   if (!winner) {
     return {
       source: null,
       matchedKeywords: [],
+      meaningfulMatches: [],
+      matchStrength: 'weak',
       matchReason: 'fallback: no semantically matched source',
       fallback: true
     };
@@ -465,12 +558,16 @@ export const chooseBestSource = (sources, beat, options = {}) => {
   return {
     source: winner.source,
     matchedKeywords: winner.matchedKeywords,
-    matchReason: `${winner.matchedKeywords.length ? `semantic match: ${winner.matchedKeywords.join(', ')}` : 'semantic match: direct source URL'}; domain uses ${winner.domainCount}`,
+    meaningfulMatches: winner.meaningfulMatches,
+    matchStrength: winner.matchStrength,
+    matchReason: `${winner.matchedKeywords.length ? `semantic match: ${winner.matchedKeywords.join(', ')}` : 'semantic match: direct source URL'}; strength ${winner.matchStrength}; domain uses ${winner.domainCount}`,
     fallback: false
   };
 };
 
-export const validateSourceUsage = (assets, {maxUrlUses = 2, maxDomainUses = 8} = {}) => {
+export const validateSourceUsage = (assets, {maxUrlUses = 1, maxDomainUses = 2, maxPerUrl, maxPerDomain} = {}) => {
+  const urlLimit = maxPerUrl ?? maxUrlUses;
+  const domainLimit = maxPerDomain ?? maxDomainUses;
   const urlCounts = new Map();
   const domainCounts = new Map();
   const problems = [];
@@ -487,13 +584,13 @@ export const validateSourceUsage = (assets, {maxUrlUses = 2, maxDomainUses = 8} 
   }
 
   for (const [url, count] of urlCounts) {
-    if (count > maxUrlUses) {
-      problems.push(`source URL ${url} is used ${count} times, above maximum ${maxUrlUses}`);
+    if (count > urlLimit) {
+      problems.push(`source URL ${url} is used ${count} times, above maximum ${urlLimit}`);
     }
   }
 
   for (const [domain, count] of domainCounts) {
-    if (count > maxDomainUses) {
+    if (count > domainLimit) {
       problems.push(`source domain reused ${count} times: ${domain}`);
     }
   }

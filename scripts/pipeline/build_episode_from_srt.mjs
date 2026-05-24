@@ -53,7 +53,15 @@ const loadBeatAssets = async () => {
   const manifest = await loadJson(path.join(root, 'data', 'assets', date, 'visual-beats.json'), {visualBeats: []});
   return {
     beats: manifest.visualBeats ?? [],
-    assetsByBeat: new Map((manifest.visualBeats ?? []).map((beat) => [beat.id, beat.assets ?? []]))
+    assetsByBeat: new Map((manifest.visualBeats ?? []).map((beat) => [beat.id, beat.assets ?? []])),
+    assetsByBeatMeta: new Map((manifest.visualBeats ?? []).map((beat) => [beat.id, {
+      assetFunction: beat.assetFunction,
+      assetStatus: beat.assetStatus,
+      assetMediaType: beat.assetMediaType,
+      assetSourceName: beat.assetSourceName,
+      assetSourceUrl: beat.assetSourceUrl,
+      isGeneratedFallback: beat.isGeneratedFallback
+    }]))
   };
 };
 
@@ -93,6 +101,7 @@ const main = async () => {
   const {storyPlan} = plan;
   const beatAssetData = await loadBeatAssets();
   const beatAssetsById = beatAssetData.assetsByBeat;
+  const assetsByBeatMeta = beatAssetData.assetsByBeatMeta;
   const sourceVisualBeatPlan = plan.visualBeatPlan;
   const segmentBoundaries = allocateSegmentCaptionRanges({captions, storyPlan, visualBeatPlan: sourceVisualBeatPlan});
   const timedVisualBeatPlan = assignBeatCaptionRanges({beats: sourceVisualBeatPlan, boundaries: segmentBoundaries});
@@ -112,7 +121,7 @@ const main = async () => {
         body: '本期用真实证据、产品界面、产业现场、结构拆解和关键判断讲清楚一周科技变化。',
         ribbon: '字幕跟随口播，画面跟随内容',
         accent: '#f5b400',
-        sourceName: `reports/${date}.md`,
+        sourceName: '今日科技新闻候选池',
         assets: []
       });
     }
@@ -154,8 +163,12 @@ const main = async () => {
   const visualBeats = timedVisualBeatPlan.map((beat) => {
     const {start, end} = captionRangeToTime(beat.captionRange, captions, durationSeconds);
     const assignedAssetFunction = assignAssetFunction(beat);
-    const assetFunction = assignedAssetFunction === 'abstract_tech' ? 'remotion_motion_clip' : assignedAssetFunction;
+    const defaultAssetFunction = assignedAssetFunction === 'abstract_tech' ? 'remotion_motion_clip' : assignedAssetFunction;
     const assets = (beatAssetsById.get(beat.id) ?? []).filter((asset) => !asset.includes('abstract_tech'));
+    const assetMeta = assetsByBeatMeta.get(beat.id) ?? {};
+    const assetFunction = assetMeta.assetFunction ?? defaultAssetFunction;
+    const assetStatus = assetMeta.assetStatus ?? (assetFunction === 'remotion_motion_clip' ? 'component-rendered' : undefined);
+    const isGeneratedFallback = assetMeta.isGeneratedFallback ?? assetStatus === 'generated-fallback';
 
     return {
       id: beat.id,
@@ -173,8 +186,14 @@ const main = async () => {
       assetQuery: (beat.assetQuery ?? []).map((query) => cleanAudienceText(query, beat.subject)).filter(Boolean),
       overlayTitle: cleanAudienceText(beat.overlayTitle, beat.subject),
       transitionOut: beat.transitionOut,
+      animationVariant: beat.animationVariant,
       highlight: beat.highlight,
       hasHighlight: beat.hasHighlight,
+      assetStatus,
+      assetMediaType: assetMeta.assetMediaType,
+      assetSourceName: assetMeta.assetSourceName,
+      assetSourceUrl: assetMeta.assetSourceUrl,
+      isGeneratedFallback,
       assets
     };
   });

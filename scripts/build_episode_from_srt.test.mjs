@@ -29,3 +29,14 @@ test('episode builder uses the current visual plan for beat timing and metadata'
   assert.doesNotMatch(source, /beatAssetData\.beats\.length \? beatAssetData\.beats : plan\.visualBeatPlan/);
   assert.match(source, /const sourceVisualBeatPlan = plan\.visualBeatPlan/);
 });
+
+test('episode builder carries asset status into audience episode data', () => {
+  assert.match(source, /assetsByBeatMeta/);
+  assert.match(source, /assetStatus:/);
+  assert.match(source, /assetMediaType:/);
+  assert.match(source, /isGeneratedFallback:/);
+});
+
+test('episode builder carries animation variants into audience episode data', () => {
+  assert.match(source, /animationVariant:/);
+});
